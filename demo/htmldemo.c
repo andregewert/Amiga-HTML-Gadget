@@ -3,6 +3,9 @@
  *
  *   HTMLDemo [FILE] <name.html> [TTF] [FONTSET Vera|DejaVu|Noto] [SIZE n]
  *
+ * From the Workbench the same options are read from the icon's tool
+ * types (TTF, FONTSET=..., SIZE=..., FILE=...); a project icon that has
+ * HTMLDemo as default tool (or a file shift-clicked with it) is opened.
  * TTF uses htmlttf.gadget (FreeType renderer) instead of html.gadget.
  * Shows how to create the class, connect scrollers via ICA_TARGET,
  * follow links (WMHI_GADGETUP) and scroll with keys and mouse wheel.
@@ -33,6 +36,9 @@
 #include <proto/button.h>
 #include <proto/scroller.h>
 #include <proto/html.h>
+#include <proto/icon.h>
+#include <workbench/startup.h>
+#include <workbench/workbench.h>
 #include <clib/alib_protos.h>
 
 #include <string.h>
@@ -41,6 +47,12 @@ static const char version[] = "$VER: HTMLDemo 1.0 (30.9.2026)";
 
 /* initialised explicitly: as COMMON symbols they would pull in the
  * auto-open stubs of libstubs.a, which try to open "window.library" */
+/* started from the Workbench: libnix must not open a console window
+ * (it would also make ReadArgs() wait for input there)                   */
+char *__stdiowin = NULL;
+extern struct WBStartup *_WBenchMsg;
+
+struct Library *IconBase = NULL;
 struct Library *WindowBase = NULL, *LayoutBase = NULL, *ButtonBase = NULL,
                *ScrollerBase = NULL, *HTMLBase = NULL;
 
@@ -64,7 +76,66 @@ static Object *winobj, *html, *vscroll, *hscroll, *status, *backbut;
 static struct Window *win;
 static STRPTR history[MAXHIST];
 static int nhist;
-static char homefile[256];
+static char homefile[512];
+
+/* options from the command line or the icon's tool types */
+static struct {
+    char file[512];
+    BOOL ttf;
+    char fontset[32];
+    LONG size;
+} opt;
+
+/* error message: shell output or, from the Workbench, a requester */
+static void message(CONST_STRPTR text, CONST_STRPTR arg)
+{
+    if (_WBenchMsg) {
+        struct EasyStruct es;
+        es.es_StructSize = sizeof(es);
+        es.es_Flags = 0;
+        es.es_Title = (STRPTR)"HTMLDemo";
+        es.es_TextFormat = (STRPTR)text;
+        es.es_GadgetFormat = (STRPTR)"OK";
+        EasyRequest(NULL, &es, NULL, (ULONG)arg);
+    } else {
+        Printf((STRPTR)text, (ULONG)arg);
+        Printf((STRPTR)"\n");
+    }
+}
+
+/* Workbench start: tool types of HTMLDemo.info and a project argument */
+static void wb_options(struct WBStartup *wbs)
+{
+    struct WBArg *wa = wbs->sm_ArgList;
+    struct DiskObject *dob;
+    BPTR old;
+
+    LONG i;
+
+    if (!(IconBase = OpenLibrary((STRPTR)"icon.library", 37))) return;
+    /* tool types of HTMLDemo.info, then those of a project icon */
+    for (i = 0; i < wbs->sm_NumArgs && i < 2; i++) {
+        if (!wa[i].wa_Lock) continue;
+        old = CurrentDir(wa[i].wa_Lock);
+        if ((dob = GetDiskObject(wa[i].wa_Name))) {
+            CONST_STRPTR *tt = (CONST_STRPTR *)dob->do_ToolTypes;
+            STRPTR v;
+            if (FindToolType(tt, (STRPTR)"TTF")) opt.ttf = TRUE;
+            if ((v = FindToolType(tt, (STRPTR)"FONTSET")))
+                strncpy(opt.fontset, (char *)v, sizeof(opt.fontset) - 1);
+            if ((v = FindToolType(tt, (STRPTR)"SIZE"))) StrToLong(v, &opt.size);
+            if (i == 0 && (v = FindToolType(tt, (STRPTR)"FILE")))
+                strncpy(opt.file, (char *)v, sizeof(opt.file) - 1);
+            FreeDiskObject(dob);
+        }
+        CurrentDir(old);
+    }
+
+    /* a project (e.g. an HTML file with HTMLDemo as default tool) */
+    if (wbs->sm_NumArgs > 1 && wa[1].wa_Lock &&
+        NameFromLock(wa[1].wa_Lock, (STRPTR)opt.file, sizeof(opt.file)))
+        AddPart((STRPTR)opt.file, wa[1].wa_Name, sizeof(opt.file));
+}
 static char titlesuffix[40];
 
 static const char fallback_doc[] =
@@ -249,16 +320,27 @@ int main(void)
 {
     struct RDArgs *rda;
     LONG args[4] = { 0, 0, 0, 0 };     /* FILE, TTF, FONTSET, SIZE */
+    BOOL ttf;
     ULONG sigmask, result;
     UWORD code;
     BOOL done = FALSE;
     Class *htmlclass;
     int rc = RETURN_FAIL;
 
-    if (!(rda = ReadArgs((STRPTR)"FILE,TTF/S,FONTSET/K,SIZE/K/N", args, NULL))) {
-        PrintFault(IoErr(), (STRPTR)"HTMLDemo");
-        return RETURN_FAIL;
+    if (_WBenchMsg) {
+        wb_options(_WBenchMsg);
+    } else {
+        if (!(rda = ReadArgs((STRPTR)"FILE,TTF/S,FONTSET/K,SIZE/K/N", args, NULL))) {
+            PrintFault(IoErr(), (STRPTR)"HTMLDemo");
+            return RETURN_FAIL;
+        }
+        if (args[0]) strncpy(opt.file, (char *)args[0], sizeof(opt.file) - 1);
+        opt.ttf = args[1] != 0;
+        if (args[2]) strncpy(opt.fontset, (char *)args[2], sizeof(opt.fontset) - 1);
+        if (args[3]) opt.size = *(LONG *)args[3];
+        if (IconBase) CloseLibrary(IconBase);
     }
+    ttf = opt.ttf;
 
     WindowBase   = OpenLibrary((STRPTR)"window.class", 44);
     LayoutBase   = OpenLibrary((STRPTR)"gadgets/layout.gadget", 44);
@@ -266,7 +348,7 @@ int main(void)
     ScrollerBase = OpenLibrary((STRPTR)"gadgets/scroller.gadget", 44);
     /* both classes have xxx_GetClass() at the same offset, so the
      * HTML_GetClass() stub works for either library                 */
-    if (args[1]) {
+    if (ttf) {
         HTMLBase = OpenLibrary((STRPTR)"gadgets/htmlttf.gadget", 1);
         if (!HTMLBase) HTMLBase = OpenLibrary((STRPTR)"PROGDIR:htmlttf.gadget", 1);
         if (!HTMLBase) HTMLBase = OpenLibrary((STRPTR)"PROGDIR:/Classes/Gadgets/htmlttf.gadget", 1);
@@ -277,12 +359,12 @@ int main(void)
     }
 
     if (!WindowBase || !LayoutBase || !ButtonBase || !ScrollerBase) {
-        Printf((STRPTR)"ReAction-Klassen (V44+) fehlen.\n");
+        message((CONST_STRPTR)"ReAction-Klassen (V44+) fehlen.", NULL);
         goto out;
     }
     if (!HTMLBase) {
-        Printf((STRPTR)"%s nicht gefunden (SYS:Classes/Gadgets/ oder Programmverzeichnis).\n",
-               (ULONG)(args[1] ? "htmlttf.gadget" : "html.gadget"));
+        message((CONST_STRPTR)"%s nicht gefunden (SYS:Classes/Gadgets/ oder Programmverzeichnis).",
+                (CONST_STRPTR)(ttf ? "htmlttf.gadget" : "html.gadget"));
         goto out;
     }
     htmlclass = HTML_GetClass();
@@ -291,10 +373,10 @@ int main(void)
         GA_ID,           GID_HTML,
         GA_RelVerify,    TRUE,
         HTML_Text,       (ULONG)fallback_doc,
-        args[2] ? HTMLTTF_FontSet : TAG_IGNORE, (ULONG)args[2],
-        args[3] ? HTMLTTF_Size : TAG_IGNORE,    args[3] ? *(LONG *)args[3] : 0,
+        opt.fontset[0] ? HTMLTTF_FontSet : TAG_IGNORE, (ULONG)opt.fontset,
+        opt.size > 0 ? HTMLTTF_Size : TAG_IGNORE,       opt.size,
         TAG_DONE);
-    if (html && args[1]) {
+    if (html && ttf) {
         STRPTR set = NULL;
         GetAttr(HTMLTTF_FontSetName, html, (ULONG *)&set);
         strcpy(titlesuffix, " [TTF: ");
@@ -326,7 +408,7 @@ int main(void)
         BUTTON_Justification, BCJ_LEFT, TAG_DONE);
 
     if (!html || !vscroll || !hscroll || !backbut || !status) {
-        Printf((STRPTR)"Objekte konnten nicht erzeugt werden.\n");
+        message((CONST_STRPTR)"Objekte konnten nicht erzeugt werden.", NULL);
         goto out;
     }
     SetAttrs(html, ICA_TARGET, (ULONG)vscroll, ICA_MAP, (ULONG)html_map, TAG_DONE);
@@ -371,12 +453,12 @@ int main(void)
         TAG_DONE);
 
     if (!winobj || !(win = (struct Window *)DoMethod(winobj, WM_OPEN))) {
-        Printf((STRPTR)"Fenster konnte nicht geöffnet werden.\n");
+        message((CONST_STRPTR)"Fenster konnte nicht geöffnet werden.", NULL);
         goto out;
     }
 
     /* start document */
-    if (args[0]) strncpy(homefile, (const char *)args[0], sizeof(homefile) - 1);
+    if (opt.file[0]) strncpy(homefile, opt.file, sizeof(homefile) - 1);
     else strcpy(homefile, "PROGDIR:example.html");
     if (!show_file((CONST_STRPTR)homefile, TRUE)) update_title();
 

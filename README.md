@@ -49,7 +49,9 @@ Copy Classes/Gadgets/htmlttf.gadget SYS:Classes/Gadgets/
 ```
 
 The demo runs directly from the archive: `Demo/HTMLDemo`, or `HTMLDemo TTF` for
-htmlttf.gadget (options `FONTSET Vera|DejaVu|Noto`, `SIZE n`).
+htmlttf.gadget (options `FONTSET Vera|DejaVu|Noto`, `SIZE n`). Started from the Workbench it
+reads the same options from its tool types (`TTF`, `FONTSET=…`, `SIZE=…`, `FILE=…`; the icon
+contains them disabled in parentheses) and opens a project whose default tool is HTMLDemo.
 
 ## Usage
 

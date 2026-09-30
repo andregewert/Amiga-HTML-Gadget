@@ -213,7 +213,8 @@ def main():
     icon(os.path.join(PKG, 'html_gadget.readme'), WBPROJECT, pic_page(), default_tool=mv)
     icon(os.path.join(PKG, 'LICENSE'), WBPROJECT, pic_page(1), default_tool=mv)
     icon(os.path.join(docs, 'LiesMich.txt'), WBPROJECT, pic_page(), default_tool=mv)
-    icon(os.path.join(demo, 'HTMLDemo'), WBTOOL, pic_demo(), stack=16384)
+    icon(os.path.join(demo, 'HTMLDemo'), WBTOOL, pic_demo(), stack=16384,
+         tooltypes=('(TTF)', '(FONTSET=Vera)', '(SIZE=12)', '(FILE=PROGDIR:example.html)'))
     icon(os.path.join(dev, 'Autodocs'), WBDRAWER, pic_drawer())
 
     # archive

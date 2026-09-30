@@ -130,7 +130,10 @@ denselben `HTML_...`-Attributen (siehe `gadgets/htmlttf.h`). Nur die Darstellung
 | `HTMLTTF_Size` | LONG | I | Pixelgröße des Fließtexts (Default: aus dem Screen-Font abgeleitet) |
 | `HTMLTTF_FontSetName` | STRPTR | G | tatsächlich benutzte Familie, NULL wenn keine gefunden |
 
-Demo: `HTMLDemo TTF` (optional `FONTSET Noto`, `SIZE 14`). Die Fonts liegen in `bin/fonts/`
+Demo: `HTMLDemo TTF` (optional `FONTSET Noto`, `SIZE 14`). Beim Start von der Workbench
+liest die Demo dieselben Optionen aus den Tooltypes (`TTF`, `FONTSET=…`, `SIZE=…`, `FILE=…`;
+im Icon als abgeschaltete Beispiele in Klammern) und öffnet Projekte, deren Default-Tool
+HTMLDemo ist. Die Fonts liegen in `bin/fonts/`
 (Vera: Bitstream-Vera-Lizenz, siehe `Vera-COPYRIGHT.TXT`). Noto (SIL Open Font License) ist
 wegen der Größe nicht im Repository: `NotoSans-Regular/-Bold/-Italic/-BoldItalic.ttf` und
 `NotoSansMono-Regular/-Bold.ttf` von <https://notofonts.github.io/> (oder aus dem Paket
