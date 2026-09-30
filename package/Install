@@ -1,0 +1,75 @@
+;
+; $VER: Install_html_gadget 1.0 (30.9.2026)
+; Installer script for html.gadget / htmlttf.gadget
+; Copyright (c) 2026 André Gewert, MIT License
+;
+(set #l (if (= @language "deutsch") 1 0))
+(set @app-name "html.gadget")
+(set @default-dest "SYS:Classes/Gadgets")
+
+(welcome
+    (select #l
+        "Welcome to the installation of html.gadget and htmlttf.gadget, ReAction classes that display simple HTML 4 documents."
+        "Willkommen zur Installation von html.gadget und htmlttf.gadget, ReAction-Klassen zur Anzeige einfacher HTML-4-Dokumente."))
+
+(set #parts
+    (askoptions
+        (prompt (select #l "Which parts do you want to install?" "Welche Teile sollen installiert werden?"))
+        (help @askoptions-help)
+        (choices
+            (select #l "html.gadget (bitmap fonts)" "html.gadget (Bitmap-Fonts)")
+            (select #l "htmlttf.gadget (TrueType fonts, FreeType)" "htmlttf.gadget (TrueType-Schriften, FreeType)")
+            (select #l "Bitstream Vera fonts to FONTS:_TrueType" "Bitstream-Vera-Schriften nach FONTS:_TrueType")
+            (select #l "Developer files (includes, Autodocs)" "Entwickler-Dateien (Includes, Autodocs)"))
+        (default 7)))
+
+(if (IN #parts 0)
+    (copylib
+        (prompt (select #l "Installing html.gadget" "html.gadget wird installiert"))
+        (help @copylib-help)
+        (source "Classes/Gadgets/html.gadget")
+        (dest "SYS:Classes/Gadgets")
+        (confirm)))
+
+(if (IN #parts 1)
+    (copylib
+        (prompt (select #l "Installing htmlttf.gadget" "htmlttf.gadget wird installiert"))
+        (help @copylib-help)
+        (source "Classes/Gadgets/htmlttf.gadget")
+        (dest "SYS:Classes/Gadgets")
+        (confirm)))
+
+(if (IN #parts 2)
+    (
+        (if (<> (exists "FONTS:_TrueType" (noreq)) 2)
+            (makedir "FONTS:_TrueType"))
+        (copyfiles
+            (prompt (select #l "Copying the Bitstream Vera fonts" "Die Bitstream-Vera-Schriften werden kopiert"))
+            (help @copyfiles-help)
+            (source "Demo/fonts")
+            (dest "FONTS:_TrueType")
+            (pattern "#?.(ttf|TXT)")
+            (confirm))))
+
+(if (IN #parts 3)
+    (
+        (set #dev
+            (askdir
+                (prompt (select #l "Where should the developer files go? A drawer \"html_gadget\" will be created there."
+                                   "Wohin sollen die Entwickler-Dateien? Dort wird eine Schublade \"html_gadget\" angelegt."))
+                (help @askdir-help)
+                (default "Work:")))
+        (set #dev (tackon #dev "html_gadget"))
+        (makedir #dev (infos))
+        (copyfiles
+            (prompt (select #l "Copying the developer files" "Die Entwickler-Dateien werden kopiert"))
+            (help @copyfiles-help)
+            (source "Developer")
+            (dest #dev)
+            (all))
+        (set @default-dest #dev)))
+
+(exit
+    (select #l
+        "html.gadget has been installed. Try Demo/HTMLDemo (and \"HTMLDemo TTF\" for htmlttf.gadget)."
+        "html.gadget ist installiert. Zum Ausprobieren: Demo/HTMLDemo (und \"HTMLDemo TTF\" für htmlttf.gadget)."))

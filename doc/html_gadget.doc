@@ -1,0 +1,389 @@
+TABLE OF CONTENTS
+
+html.gadget/--datasheet--
+html.gadget/HTML_Anchor
+html.gadget/HTML_AutoAnchors
+html.gadget/HTML_BaseDir
+html.gadget/HTML_ClearSelection
+html.gadget/HTML_Copy
+html.gadget/HTML_File
+html.gadget/HTML_FixedFont
+html.gadget/HTML_Font
+html.gadget/HTML_Frame
+html.gadget/HTML_GetClass
+html.gadget/HTML_HasSelection
+html.gadget/HTML_ImageError
+html.gadget/HTML_ImagesLoaded
+html.gadget/HTML_ImagesTotal
+html.gadget/HTML_Left
+html.gadget/HTML_LineHeight
+html.gadget/HTML_LinkURL
+html.gadget/HTML_LoadImages
+html.gadget/HTML_Margin
+html.gadget/HTML_NumLinks
+html.gadget/HTML_SelectAll
+html.gadget/HTML_SelectedText
+html.gadget/HTML_SystemColors
+html.gadget/HTML_Text
+html.gadget/HTML_Title
+html.gadget/HTML_Top
+html.gadget/HTML_Total
+html.gadget/HTML_Visible
+html.gadget/--datasheet--                            html.gadget/--datasheet--
+
+   NAME
+    html.gadget  -- display simple HTML 4 documents
+
+   SUPERCLASS
+    gadgetclass
+
+   REQUIREMENTS
+    AmigaOS 3.2 (intuition, graphics and utility V39+; window.class and
+    layout.gadget V47 for ReAction use), datatypes.library for pictures.
+
+   DESCRIPTION
+    html.gadget is a ReAction/BOOPSI gadget that parses and displays simple
+    HTML 4 documents: formatted text, lists, tables, links and pictures (via
+    datatypes). Text is drawn with the system's bitmap fonts; bigger HTML
+    font sizes use the nearest size that exists as a real bitmap font, so no
+    scaled fonts are used. Rendering goes through an off-screen bitmap, so
+    scrolling does not flicker.
+
+   METHODS
+    OM_NEW, OM_SET, OM_UPDATE, OM_GET, OM_DISPOSE, GM_DOMAIN, GM_LAYOUT,
+    GM_RENDER, GM_HITTEST, GM_GOACTIVE, GM_HANDLEINPUT, GM_GOINACTIVE.
+    All other methods are passed to the superclass.
+
+   ATTRIBUTES
+    HTML_Text, HTML_File, HTML_Title, HTML_Top, HTML_Total, HTML_Visible,
+    HTML_Left, HTML_TotalWidth, HTML_VisibleWidth, HTML_LinkURL, HTML_Anchor,
+    HTML_SystemColors, HTML_Margin, HTML_LineHeight, HTML_AutoAnchors,
+    HTML_Frame, HTML_NumLinks, HTML_BaseDir, HTML_LoadImages,
+    HTML_ImagesTotal, HTML_ImagesLoaded, HTML_ImageError, HTML_Copy,
+    HTML_SelectAll, HTML_ClearSelection, HTML_HasSelection,
+    HTML_SelectedText
+
+   SUPPORTED HTML
+    <html> <head> <title> <body bgcolor text link vlink alink background>
+    <p> <br> <div> <center> <h1>..<h6> <hr> <pre> <xmp> <listing>
+    <blockquote> <address> <b> <strong> <i> <em> <u> <s> <strike> <tt>
+    <code> <kbd> <samp> <var> <cite> <dfn> <big> <small> <sub> <sup> <q>
+    <nobr> <font size color face> <a href name> <ul> <ol> <li> <dl> <dt>
+    <dd> <table> <caption> <tr> <td> <th> (colspan, width, align, valign,
+    bgcolor, border, cellpadding, cellspacing, nowrap, background) <img> <input>
+    (as boxes). Entities of HTML 4 Latin-1 plus numeric entities; UTF-8
+    input is detected and converted to Latin-1. Not supported: CSS,
+    JavaScript, frames, rowspan, floating tables and images.
+
+   USAGE
+    Link clicks are reported with IDCMP_GADGETUP (WMHI_GADGETUP), Code =
+    index of the link; read HTML_LinkURL for the target. Scrollers are
+    connected with ICA_TARGET/ICA_MAP: HTML_Top/HTML_Total/HTML_Visible to a
+    vertical scroller, SCROLLER_Top back to HTML_Top (see the demo source).
+    Text is selected by dragging with the left mouse button, a double click
+    selects a word; HTML_Copy puts the selection into the clipboard.
+
+   EXAMPLE
+        struct Library *HTMLBase = OpenLibrary("gadgets/html.gadget", 1);
+        Object *html = NewObject(HTML_GetClass(), NULL,
+            GA_ID,        1,
+            GA_RelVerify, TRUE,
+            HTML_File,    "PROGDIR:help.html",
+            TAG_DONE);
+
+   SEE ALSO
+    gadgets/html.h, Demo/HTMLDemo.c
+html.gadget/HTML_Anchor                                html.gadget/HTML_Anchor
+
+   NAME
+    HTML_Anchor -- (STRPTR) scroll to a named anchor (V1)
+
+   USAGE
+    (OM_SET)
+
+   FUNCTION
+    Scrolls to <a name="..."> or an element with id="...". A leading '#' is
+    ignored. If the gadget has not been laid out yet, the jump is done at the
+    next layout.
+html.gadget/HTML_AutoAnchors                      html.gadget/HTML_AutoAnchors
+
+   NAME
+    HTML_AutoAnchors -- (BOOL) handle "#anchor" links internally (V1)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET)
+
+   FUNCTION
+    If TRUE (default), clicking a link whose HREF starts with '#' scrolls to
+    that anchor. A GADGETUP is sent in any case.
+html.gadget/HTML_BaseDir                              html.gadget/HTML_BaseDir
+
+   NAME
+    HTML_BaseDir -- (STRPTR) directory of the last HTML_File (V1)
+
+   USAGE
+    (OM_GET)
+
+   FUNCTION
+    The path part of the file loaded with HTML_File, "" after HTML_Text.
+    Use it to resolve relative links (AddPart()).
+html.gadget/HTML_ClearSelection                html.gadget/HTML_ClearSelection
+
+   NAME
+    HTML_ClearSelection -- (BOOL) remove the text selection (V1)
+
+   USAGE
+    (OM_SET)
+html.gadget/HTML_Copy                                    html.gadget/HTML_Copy
+
+   NAME
+    HTML_Copy -- (BOOL) copy the selection to the clipboard (V1)
+
+   USAGE
+    (OM_SET) -- application's process only
+
+   FUNCTION
+    Writes the selected text as IFF FTXT/CHRS to clipboard unit 0. Wrapped
+    lines of a paragraph are joined with blanks, table columns are separated
+    by TAB, blocks by LF. Typical use: menu item "Copy" (Amiga-C).
+
+   SEE ALSO
+    HTML_SelectedText, HTML_HasSelection
+html.gadget/HTML_File                                    html.gadget/HTML_File
+
+   NAME
+    HTML_File -- (STRPTR) load an HTML file (V1)
+
+   USAGE
+    (OM_NEW, OM_SET) -- application's process only
+
+   FUNCTION
+    Loads and displays the file. Pictures are loaded relative to its
+    directory, see HTML_BaseDir. The scroll position is reset to the top.
+html.gadget/HTML_FixedFont                          html.gadget/HTML_FixedFont
+
+   NAME
+    HTML_FixedFont -- (struct TextAttr *) fixed width font (V1)
+
+   USAGE
+    (OM_NEW)
+
+   FUNCTION
+    Used for <pre>, <tt>, <code> ... Default: courier.font in the size
+    nearest to the body text, or the system default font.
+html.gadget/HTML_Font                                    html.gadget/HTML_Font
+
+   NAME
+    HTML_Font -- (struct TextAttr *) proportional base font (V1)
+
+   USAGE
+    (OM_NEW)
+
+   FUNCTION
+    Default: font of the default public screen. Headings and <font size>
+    use other sizes of the same family, rounded to existing sizes.
+html.gadget/HTML_Frame                                  html.gadget/HTML_Frame
+
+   NAME
+    HTML_Frame -- (BOOL) draw a recessed frame (V1)
+
+   USAGE
+    (OM_NEW)
+
+   FUNCTION
+    Default TRUE.
+html.gadget/HTML_GetClass                            html.gadget/HTML_GetClass
+
+   NAME
+    HTML_GetClass -- get a pointer to the html.gadget class (V1)
+
+   SYNOPSIS
+    class = HTML_GetClass();
+    D0
+
+    Class *HTML_GetClass(VOID);
+
+   FUNCTION
+    Returns the class pointer for NewObject(). The class is public as well,
+    so after OpenLibrary() NewObject(NULL, "html.gadget", ...) works too.
+
+   RESULT
+    class - pointer to the class, never NULL while the library is open.
+html.gadget/HTML_HasSelection                    html.gadget/HTML_HasSelection
+
+   NAME
+    HTML_HasSelection -- (BOOL) is text selected? (V1)
+
+   USAGE
+    (OM_GET)
+html.gadget/HTML_ImageError                        html.gadget/HTML_ImageError
+
+   NAME
+    HTML_ImageError -- (STRPTR) why the first picture could not be loaded (V1)
+
+   USAGE
+    (OM_GET)
+
+   FUNCTION
+    NULL if all pictures were loaded, otherwise a text like
+    "PROGDIR:x.png: NewDTObject: Unknown data type". Together with
+    HTML_ImagesTotal and HTML_ImagesLoaded useful for diagnostics.
+html.gadget/HTML_ImagesLoaded                    html.gadget/HTML_ImagesLoaded
+
+   NAME
+    HTML_ImagesLoaded -- (LONG) number of pictures loaded (V1)
+
+   USAGE
+    (OM_GET)
+html.gadget/HTML_ImagesTotal                      html.gadget/HTML_ImagesTotal
+
+   NAME
+    HTML_ImagesTotal -- (LONG) number of pictures in the document (V1)
+
+   USAGE
+    (OM_GET)
+
+   FUNCTION
+    Counts <img> (and <input type=image>) with a local SRC, plus background pictures of <body>, <table>, <td> and <th>.
+html.gadget/HTML_Left                                    html.gadget/HTML_Left
+
+   NAME
+    HTML_Left -- (LONG) horizontal scroll position (V1)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_UPDATE, OM_GET, OM_NOTIFY)
+
+   FUNCTION
+    In pixels. Wide tables and <pre> blocks can be wider than the gadget,
+    see HTML_TotalWidth and HTML_VisibleWidth.
+html.gadget/HTML_LineHeight                        html.gadget/HTML_LineHeight
+
+   NAME
+    HTML_LineHeight -- (LONG) height of a line of body text (V1)
+
+   USAGE
+    (OM_GET)
+
+   FUNCTION
+    Useful as scroll step for cursor keys and the mouse wheel.
+html.gadget/HTML_LinkURL                              html.gadget/HTML_LinkURL
+
+   NAME
+    HTML_LinkURL -- (STRPTR) HREF of the link clicked last (V1)
+
+   USAGE
+    (OM_GET)
+
+   FUNCTION
+    Valid until the next document is set.
+html.gadget/HTML_LoadImages                        html.gadget/HTML_LoadImages
+
+   NAME
+    HTML_LoadImages -- (BOOL) load pictures (V1)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET)
+
+   FUNCTION
+    Default TRUE. Takes effect for the next document. Pictures are remapped for the gadget's screen; if the document is set
+    before the window is open, the default public screen is assumed.
+html.gadget/HTML_Margin                                html.gadget/HTML_Margin
+
+   NAME
+    HTML_Margin -- (LONG) page margin in pixels (V1)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET)
+
+   FUNCTION
+    Default 8.
+html.gadget/HTML_NumLinks                            html.gadget/HTML_NumLinks
+
+   NAME
+    HTML_NumLinks -- (LONG) number of links in the document (V1)
+
+   USAGE
+    (OM_GET)
+html.gadget/HTML_SelectAll                          html.gadget/HTML_SelectAll
+
+   NAME
+    HTML_SelectAll -- (BOOL) select the whole document (V1)
+
+   USAGE
+    (OM_SET)
+html.gadget/HTML_SelectedText                    html.gadget/HTML_SelectedText
+
+   NAME
+    HTML_SelectedText -- (STRPTR) the selected text (V1)
+
+   USAGE
+    (OM_GET)
+
+   FUNCTION
+    Latin-1 text of the selection or NULL. The string belongs to the gadget
+    and stays valid until the next OM_GET of this attribute or OM_DISPOSE.
+html.gadget/HTML_SystemColors                    html.gadget/HTML_SystemColors
+
+   NAME
+    HTML_SystemColors -- (BOOL) use screen colours for plain documents (V1)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET)
+
+   FUNCTION
+    If TRUE, documents without <body bgcolor/text> are drawn with the
+    screen's BACKGROUNDPEN/TEXTPEN instead of black on white. Default FALSE.
+html.gadget/HTML_Text                                    html.gadget/HTML_Text
+
+   NAME
+    HTML_Text -- (STRPTR) HTML source to display (V1)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET) -- set only from the application's process
+
+   FUNCTION
+    The text is copied. Latin-1 or UTF-8 (detected automatically).
+    Relative picture paths are resolved against the current directory.
+html.gadget/HTML_Title                                  html.gadget/HTML_Title
+
+   NAME
+    HTML_Title -- (STRPTR) contents of <title> (V1)
+
+   USAGE
+    (OM_GET)
+
+   FUNCTION
+    NULL if the document has no title.
+html.gadget/HTML_Top                                      html.gadget/HTML_Top
+
+   NAME
+    HTML_Top -- (LONG) vertical scroll position (V1)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_UPDATE, OM_GET, OM_NOTIFY)
+
+   FUNCTION
+    In pixels. The gadget notifies HTML_Top, HTML_Total, HTML_Visible,
+    HTML_Left, HTML_TotalWidth and HTML_VisibleWidth (plus GA_ID) whenever
+    they change, except for values it received with OM_UPDATE.
+html.gadget/HTML_Total                                  html.gadget/HTML_Total
+
+   NAME
+    HTML_Total -- (LONG) height of the document in pixels (V1)
+
+   USAGE
+    (OM_GET, OM_NOTIFY)
+
+   SEE ALSO
+    HTML_TotalWidth
+html.gadget/HTML_Visible                              html.gadget/HTML_Visible
+
+   NAME
+    HTML_Visible -- (LONG) height of the visible area in pixels (V1)
+
+   USAGE
+    (OM_GET, OM_NOTIFY)
+
+   SEE ALSO
+    HTML_VisibleWidth
+

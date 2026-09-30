@@ -1,0 +1,100 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<title>html.gadget &ndash; Testseite</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<style>body { color: red }</style>
+<script>alert("<b>nie sichtbar</b>");</script>
+</head>
+<body bgcolor="#FFFFFF" text="#000000" link="#0000CC" vlink="#660099">
+<a name="top"></a>
+<h1 align="center">html.gadget</h1>
+<p align="center"><i>Eine ReAction-Klasse f&uuml;r AmigaOS 3.2</i></p>
+<hr>
+<p>Dieses Dokument zeigt, was die Klasse darstellen kann: <b>fett</b>,
+<i>kursiv</i>, <u>unterstrichen</u>, <s>durchgestrichen</s>, <tt>Schreibmaschine</tt>,
+<font color="red">rot</font>, <font color="#008000">gr&uuml;n</font>,
+<font size="+2">gro&szlig;</font> und <font size="1">klein</font>.
+Formeln wie E=mc<sup>2</sup> oder H<sub>2</sub>O gehen auch.
+Umlaute: &Auml;&Ouml;&Uuml; &auml;&ouml;&uuml; &szlig; &copy; &euro; &hellip;</p>
+
+<p>Zum <a href="#listen">Abschnitt Listen</a>, zu den <a href="#tabellen">Tabellen</a>,
+zu den <a href="#bilder">Bildern</a>
+oder zu einer <a href="zweite.html">anderen Datei</a>.</p>
+
+<h2><a name="listen">Listen</a></h2>
+<ul>
+<li>Erster Punkt
+<li>Zweiter Punkt mit etwas l&auml;ngerem Text, der hoffentlich umbrechen muss, damit man sieht, wie die Einr&uuml;ckung funktioniert.
+<li>Verschachtelt:
+  <ul>
+  <li>Kreis
+  <li>Noch ein Kreis
+    <ul><li>Quadrat</ul>
+  </ul>
+</ul>
+<ol>
+<li>Eins
+<li>Zwei
+<li>Drei
+</ol>
+<ol type="I" start="4"><li>Vier<li>F&uuml;nf</ol>
+<dl>
+<dt><b>Begriff</b>
+<dd>Die Erkl&auml;rung des Begriffs, etwas einger&uuml;ckt.
+</dl>
+
+<h3>Vorformatiert</h3>
+<pre>
+int main(void)
+{
+	printf("Hallo Amiga!\n");   /* &lt;- Tab */
+	return 0;
+}
+</pre>
+<blockquote>Ein Zitat wird links und rechts einger&uuml;ckt. Lorem ipsum dolor sit amet,
+consectetur adipisici elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua.</blockquote>
+
+<h2><a name="tabellen">Tabellen</a></h2>
+<table border="1" cellpadding="4" cellspacing="0">
+<caption><b>Amiga-Modelle</b></caption>
+<tr bgcolor="#C0C0C0"><th>Modell<th>CPU<th>Jahr
+<tr><td>Amiga 500<td>68000<td align="right">1987
+<tr><td>Amiga 1200<td>68EC020<td align="right">1992
+<tr><td>Amiga 4000<td>68040<td align="right">1992
+<tr><td colspan="2" align="center" bgcolor="#FFFF80">Zusammengefasste Zelle<td>&nbsp;
+</table>
+<p>
+<table width="100%" border="0" cellpadding="6">
+<tr valign="top">
+<td bgcolor="#DDDDFF" width="30%"><b>Links</b><br>Eine Spalte mit Hintergrund.</td>
+<td>Die rechte Spalte nimmt den restlichen Platz ein und bricht l&auml;ngeren
+Text ganz normal um. Tabellen k&ouml;nnen auch verschachtelt werden:
+<table border="2"><tr><td>A<td>B<tr><td>C<td>D</table>
+</td>
+</tr>
+</table>
+
+<h2><a name="bilder">Bilder</a></h2>
+<p>Bilder werden &uuml;ber die <b>Datatypes</b> geladen, also in jedem Format,
+f&uuml;r das ein Datatype installiert ist. Das GIF hat einen transparenten
+Hintergrund: <img src="boing.gif" alt="Boing"> und kleiner skaliert
+<img src="boing.gif" width="24" height="24" alt="Boing"> mitten im Text.</p>
+<table border="1" cellpadding="6">
+<tr><th>IFF ILBM<th>Als Link<th>Fehlt
+<tr align="center" valign="middle">
+<td><img src="farben.iff" alt="Farbbalken"></td>
+<td><a href="zweite.html"><img src="boing.gif" alt="Zur zweiten Seite"></a><br><small>anklickbar</small></td>
+<td><img src="gibtsnicht.png" alt="Alt-Text"></td>
+</table>
+<p>Kachelmuster als Seiten- und Zellenhintergrund zeigt die Seite
+<a href="hintergrund.html">Hintergrundbilder</a>.</p>
+
+<center>
+<p>Zentriert mit <code>&lt;center&gt;</code>.<br>
+<input type="submit" value="Knopf">
+</center>
+<hr width="50%" noshade size="1">
+<address>Erstellt mit html.gadget &ndash; <a href="#top">nach oben</a></address>
+</body>
+</html>

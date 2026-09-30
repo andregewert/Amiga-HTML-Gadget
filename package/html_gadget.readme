@@ -1,0 +1,84 @@
+Short:        ReAction class rendering simple HTML 4
+Author:       André Gewert <agewert@ubergeek.de>
+Uploader:     André Gewert <agewert@ubergeek.de>
+Type:         dev/gui
+Version:      1.0
+Architecture: m68k-amigaos >= 3.2.0
+Requires:     AmigaOS 3.2, 68000+; htmlttf.gadget: RTG recommended
+Distribution: Aminet
+Replaces:     -
+
+html.gadget and htmlttf.gadget are public ReAction (BOOPSI) gadget classes
+for AmigaOS 3.2 that display simple HTML 4 documents - online help, readme
+files, "about" pages, simple offline browsers.
+
+Features
+--------
+ - headings, paragraphs, <pre>, <blockquote>, alignment, horizontal rules
+ - text styles, <font size color face>, sub/superscript
+ - lists (ul/ol with all numbering types, nested; dl)
+ - tables with automatic column widths, colspan, border, cellpadding,
+   cellspacing, width in pixels or %, align/valign, bgcolor, captions,
+   nested tables
+ - links with visited/active colours, anchors, "#anchor" links handled
+   by the gadget itself, link clicks reported as GADGETUP
+ - pictures in every format a datatype exists for (GIF transparency, PNG
+   alpha in htmlttf.gadget), scaled with width/height
+ - background colours and tiled background pictures for the page, tables
+   and cells
+ - text selection with the mouse (drag, double click for a word) and
+   copying to the clipboard (IFF FTXT)
+ - Latin-1 entities, UTF-8 documents are converted automatically
+ - scrollers connect via ICA_TARGET/ICA_MAP, mouse wheel and keys in the
+   demo program
+
+html.gadget uses the system's bitmap fonts and rounds bigger HTML font
+sizes to sizes that really exist (e.g. Helvetica 9/11/13/15/18/24), so no
+scaled bitmap fonts are shown. Rendering is flicker free through an
+off-screen bitmap. Runs on every AmigaOS 3.2 system, 68000 and up.
+
+htmlttf.gadget is a drop-in alternative with the same attributes that
+renders anti-aliased TrueType fonts through a built-in FreeType 2.3.8
+(Bitstream Vera included; DejaVu and Noto are supported as well),
+composites everything in 32 bit (pictures with alpha channel) and
+writes it with WritePixelArray() on RTG screens
+or maps it to pens on palette screens.
+
+Contents
+--------
+ Install              Installer script (English/German)
+ Classes/Gadgets/     html.gadget, htmlttf.gadget
+ Demo/                HTMLDemo (a small browser) with example pages;
+                      "HTMLDemo TTF" uses htmlttf.gadget
+ Developer/           includes (gadgets, proto, inline, clib), FD, SFD,
+                      Autodocs
+ Docs/                German documentation (LiesMich.txt)
+ Source/              complete source code (C, cross compiled with
+                      bebbo's amiga-gcc and NDK 3.2; FreeType 2.3.8 from
+                      Aminet dev/lib/freetype-2.3.8 is needed for
+                      htmlttf.gadget)
+
+The demo runs directly from the archive; to use the classes in your own
+programs, run the Installer script or copy Classes/Gadgets/#? to
+SYS:Classes/Gadgets/.
+
+Not supported: CSS, JavaScript, frames, forms (drawn as boxes only),
+rowspan, text flowing around tables and pictures, network access.
+
+License
+-------
+MIT License, see LICENSE.
+htmlttf.gadget contains FreeType: Portions of this software are copyright
+(c) 2009 The FreeType Project (www.freetype.org). All rights reserved.
+Bitstream Vera fonts: Copyright (c) 2003 by Bitstream, Inc., see
+Licenses/Vera-COPYRIGHT.TXT.
+
+Deutsch
+-------
+html.gadget und htmlttf.gadget sind öffentliche ReAction-Klassen für
+AmigaOS 3.2, die einfache HTML-4-Dokumente anzeigen: Überschriften,
+Listen, Tabellen, Links, Bilder über Datatypes, Text markieren und in
+die Zwischenablage kopieren. html.gadget verwendet die Bitmap-Fonts des
+Systems in ihren echten Größen, htmlttf.gadget geglättete
+TrueType-Schriften über FreeType. Ausführliche deutsche Dokumentation:
+Docs/LiesMich.txt. Installation mit dem beiliegenden Installer-Skript.

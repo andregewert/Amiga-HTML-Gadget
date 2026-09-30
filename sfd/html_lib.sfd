@@ -1,0 +1,10 @@
+==id $Id: html_lib.sfd 1.0 (30.9.2026) $
+* "html.gadget"
+==base _HTMLBase
+==basetype struct Library *
+==libname html.gadget
+==bias 30
+==public
+==include <intuition/classes.h>
+Class * HTML_GetClass() ()
+==end

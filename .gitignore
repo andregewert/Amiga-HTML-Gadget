@@ -1,0 +1,22 @@
+# build results (make, make dist, make check/preview)
+/build/
+/bin/
+/dist/
+/test/hosttest
+/test/ttfpreview
+*.o
+*.debug
+*.ppm
+
+# tools
+__pycache__/
+*.pyc
+
+# editor / OS leftovers
+*~
+.DS_Store
+*.info.bak
+
+# Noto fonts are not part of the repository (about 3 MB); get them from
+# https://notofonts.github.io/ or your distribution and put them into demo/fonts/
+/demo/fonts/Noto*

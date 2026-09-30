@@ -1,0 +1,8 @@
+* "html.gadget"
+* Automatically generated FD (sfdc 1.11f)! Do not edit!
+##base _HTMLBase
+##bias 30
+##public
+* "html.gadget"
+HTML_GetClass()()
+##end

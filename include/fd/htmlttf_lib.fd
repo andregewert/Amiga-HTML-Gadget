@@ -1,0 +1,8 @@
+* "htmlttf.gadget"
+* Automatically generated FD (sfdc 1.11f)! Do not edit!
+##base _HTMLTTFBase
+##bias 30
+##public
+* "htmlttf.gadget"
+HTMLTTF_GetClass()()
+##end

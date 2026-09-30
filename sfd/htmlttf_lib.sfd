@@ -1,0 +1,10 @@
+==id $Id: htmlttf_lib.sfd 1.0 (30.9.2026) $
+* "htmlttf.gadget"
+==base _HTMLTTFBase
+==basetype struct Library *
+==libname htmlttf.gadget
+==bias 30
+==public
+==include <intuition/classes.h>
+Class * HTMLTTF_GetClass() ()
+==end
