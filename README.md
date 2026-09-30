@@ -116,7 +116,7 @@ The full reference is in the Autodocs: [`doc/html_gadget.doc`](doc/html_gadget.d
 
 ## Building
 
-Cross compiled on Linux with [bebbo's amiga-gcc](https://github.com/bebbo/amiga-gcc) in
+Cross compiled on Linux with [bebbo's amiga-gcc](https://codeberg.org/bebbo/amiga-gcc) in
 `/opt/amiga` (with NDK 3.2). htmlttf.gadget additionally needs the FreeType 2.3.8 sources
 (Aminet `dev/lib/freetype-2.3.8`, default path `~/AmiLib/freetype-2.3.8`, set with
 `make FT=...`).

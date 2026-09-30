@@ -145,7 +145,7 @@ Demo-Seite dazu: `hintergrund.html`.
 
 ## Bauen
 
-Benötigt bebbos amiga-gcc unter `/opt/amiga` (mit NDK 3.2), für `htmlttf.gadget` zusätzlich
+Benötigt [bebbos amiga-gcc](https://codeberg.org/bebbo/amiga-gcc) unter `/opt/amiga` (mit NDK 3.2), für `htmlttf.gadget` zusätzlich
 die FreeType-2.3.8-Quellen (Aminet `freetype-2.3.8`, Standardpfad `~/AmiLib/freetype-2.3.8`,
 änderbar mit `make FT=...`):
 
