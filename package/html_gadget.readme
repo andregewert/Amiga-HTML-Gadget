@@ -6,7 +6,6 @@ Version:      1.0
 Architecture: m68k-amigaos >= 3.2.0
 Requires:     AmigaOS 3.2, 68000+; htmlttf.gadget: RTG recommended
 Distribution: Aminet
-Replaces:     -
 
 html.gadget and htmlttf.gadget are public ReAction (BOOPSI) gadget classes
 for AmigaOS 3.2 that display simple HTML 4 documents - online help, readme
