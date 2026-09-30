@@ -14,7 +14,9 @@
   anti-aliased TrueType fonts through a built-in FreeType 2.3.8 and composites
   everything in 32 bit (pictures with alpha channel). RTG is recommended.
 
-![htmlttf.gadget rendering the demo page (host preview)](preview-vera.png)
+![htmlttf.gadget with Bitstream Vera on AmigaOS 3.2 (HTMLDemo)](screenshot-amiga.png)
+
+*htmlttf.gadget with Bitstream Vera on AmigaOS 3.2 (HTMLDemo TTF)*
 
 ## Features
 

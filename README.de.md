@@ -6,6 +6,10 @@
 die als ReAction-Gadget in `layout.gadget` benutzt werden kann und einfache
 HTML-4-Dokumente darstellt.
 
+![htmlttf.gadget mit Bitstream Vera unter AmigaOS 3.2 (HTMLDemo)](screenshot-amiga.png)
+
+*htmlttf.gadget mit Bitstream Vera unter AmigaOS 3.2 (HTMLDemo TTF)*
+
 ## Installation
 
 ```
