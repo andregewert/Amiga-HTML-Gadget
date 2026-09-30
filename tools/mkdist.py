@@ -189,7 +189,7 @@ def main():
 
     docs = os.path.join(PKG, 'Docs')
     os.makedirs(docs)
-    with open(b('README.md'), encoding='utf-8') as f:
+    with open(b('README.de.md'), encoding='utf-8') as f:
         text = to_latin1_text(f.read())
     with open(os.path.join(docs, 'LiesMich.txt'), 'wb') as f:
         f.write(text)
@@ -200,7 +200,7 @@ def main():
     copytree(b('demo'), os.path.join(src, 'demo'), ignore=('fonts',))
     for f in glob.glob(b('test', '*.c')):
         copy(f, os.path.join(src, 'test', os.path.basename(f)))
-    for f in ('Makefile', 'README.md', 'LICENSE'):
+    for f in ('Makefile', 'README.md', 'README.de.md', 'LICENSE'):
         copy(b(f), os.path.join(src, f))
 
     # icons
