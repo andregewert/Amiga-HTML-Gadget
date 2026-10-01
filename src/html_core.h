@@ -100,7 +100,7 @@ unsigned long html_parse_color(const char *s);   /* COL_NONE if invalid */
 #define HF_INDEX(fixed, size) ((fixed) * 7 + (size) - 1)
 
 /* soft styles (same bits as graphics/text.h FSF_*) */
-#define HS_UNDERLINED 1
+#define HS_UNDERLINED 1       /* drawn by us */
 #define HS_BOLD       2
 #define HS_ITALIC     4
 #define HS_STRIKE     0x80    /* drawn by us */
@@ -162,6 +162,9 @@ struct HLayout {
 struct HLayout *html_layout(struct HDoc *doc, struct HEnv *env, long width);
 void            html_free_layout(struct HLayout *lay);
 long            html_find_anchor(struct HLayout *lay, const char *name); /* -1 */
+/* right end of the underline of text item i: reaches the next word of the
+ * same link on the line, so a link is underlined without gaps            */
+long            html_underline_end(struct HLayout *lay, long i);
 
 /* ---- selection (html_select.c) --------------------------------------- */
 

@@ -631,7 +631,8 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
                 rect(rp, hx0, y, hx1 - 1, y + it->h - 1);
             }
             SetFont(rp, tf);
-            SetSoftStyle(rp, it->style & 7, AskSoftStyle(rp));
+            /* bold/italic by the font system, the underline is drawn below */
+            SetSoftStyle(rp, it->style & (FSF_BOLD | FSF_ITALIC), AskSoftStyle(rp));
             SetAPen(rp, get_pen(d, gi, col, TEXTPEN));
             Move(rp, clampw(x), clampw(y + it->base));
             Text(rp, (STRPTR)it->s, it->len > 32000 ? 32000 : it->len);
@@ -639,6 +640,11 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
                 SetAPen(rp, gi->gi_DrInfo->dri_Pens[FILLTEXTPEN]);
                 Move(rp, clampw(x + html_char_x(&d->env, it, c0)), clampw(y + it->base));
                 Text(rp, (STRPTR)it->s + c0, c1 - c0);
+            }
+            SetAPen(rp, get_pen(d, gi, col, TEXTPEN));
+            if (it->style & HS_UNDERLINED) {  /* without gaps between the words of a link */
+                LONG uy = y + it->base + 1;
+                rect(rp, x, uy, html_underline_end(lay, i) + dx - 1, uy);
             }
             if (it->style & HS_STRIKE) {
                 LONG sy = y + it->base - tf->tf_Baseline / 3;

@@ -334,13 +334,7 @@ void tr_render_strip(struct TRender *r, struct HLayout *lay, int syscolors, stru
 
         switch (it->type) {
         case IT_TEXT: {
-            long uend = it->x + it->w;
-            if (it->link >= 0 && i + 1 < lay->nitems) {       /* close the gap between link words */
-                struct HItem *nx = it + 1;
-                if (nx->type == IT_TEXT && nx->link == it->link && nx->y == it->y &&
-                    (nx->style & HS_UNDERLINED) && nx->x > uend && nx->x - uend < it->h)
-                    uend = nx->x;
-            }
+            long uend = html_underline_end(lay, i);
             {
                 long c0 = -1, c1 = -1;
                 if (r->sel && r->env && html_sel_part(r->sel, lay, i, &c0, &c1)) {

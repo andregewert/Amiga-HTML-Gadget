@@ -1457,6 +1457,16 @@ long html_find_anchor(struct HLayout *lay, const char *name)
     return -1;
 }
 
+long html_underline_end(struct HLayout *lay, long i)
+{
+    struct HItem *it = &lay->items[i], *nx = it + 1;
+    long uend = it->x + it->w;
+    if (it->link >= 0 && i + 1 < lay->nitems && nx->type == IT_TEXT && nx->link == it->link &&
+        nx->y == it->y && (nx->style & HS_UNDERLINED) && nx->x > uend && nx->x - uend < it->h)
+        uend = nx->x;
+    return uend;
+}
+
 /* ------------------------------------------------------------------ */
 /* which fonts are needed                                              */
 
