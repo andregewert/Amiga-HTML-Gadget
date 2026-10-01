@@ -1,0 +1,56 @@
+# html.gadget – Hinweise für Claude
+
+ReAction-/BOOPSI-Klasse (HTML 4) für AmigaOS 3.2, cross-kompiliert mit bebbos amiga-gcc.
+Aufbau, Features und Build sind in `README.de.md` beschrieben.
+
+## Zeichenkodierung: ISO-8859-1
+
+- Alle Dateien, die auf den Amiga gehen oder von Amiga-Werkzeugen gelesen werden, sind
+  **ISO-8859-1** kodiert: `src/`, `include/`, `sfd/`, `demo/`, `test/`, `ttf/`, `doc/`,
+  `package/`, `LICENSE`, `Makefile`. Niemals UTF-8 in diese Dateien schreiben.
+- Ausnahmen (UTF-8): `README*.md`, `CLAUDE.md`, `tools/*.py`, `.claude/`.
+- Neue Dateien in diesen Verzeichnissen ebenfalls in ISO-8859-1 anlegen. In HTML-Dateien
+  bevorzugt Entities (`&auml;`, `&szlig;` …) verwenden. In C-Kommentaren reicht ASCII.
+  Wenn Umlaute nötig sind, die Datei z. B. mit Python schreiben
+  (`open(p, 'w', encoding='latin-1')`) oder hinterher mit
+  `iconv -f UTF-8 -t ISO-8859-1` umwandeln.
+- `make charcheck` findet UTF-8-Sequenzen. Ein Claude-Code-Hook (`.claude/settings.json`)
+  führt die Prüfung nach jedem Write/Edit aus. Schlägt er an, die genannte Datei sofort
+  umwandeln.
+
+## Bauen und Testen
+
+- `make`: Cross-Build (`/opt/amiga`, FreeType unter `~/AmiLib/freetype-2.3.8`), läuft lokal.
+- `make check`: Parser und Layout auf dem Host (ASan/UBSan). Die vollständige Ausgabe von
+  `test/hosttest` wird mit `test/<seite>.expected` verglichen.
+- Bei einer gewollten Layoutänderung `make check-update` ausführen und die Änderungen an den
+  `.expected`-Dateien im Diff prüfen, bevor sie eingecheckt werden.
+- Vor einem Commit: `make` (enthält `charcheck`) und `make check`.
+
+## Testen auf dem Amiga
+
+- HTMLDemo öffnet zuerst `gadgets/html.gadget` bzw. `gadgets/htmlttf.gadget` (residente
+  Kopie oder `SYS:Classes/Gadgets/`) und erst danach `PROGDIR:`. Eine alte installierte
+  oder noch geladene Version überdeckt also den frischen Build in `bin/`.
+- Sieht das Host-Layout (`hosttest`) richtig aus, fehlt das Feature auf dem Amiga aber
+  komplett, zuerst die geladene Version prüfen (`Version gadgets/html.gadget FULL`) und
+  alte Kopien entfernen bzw. mit `Avail FLUSH` aus dem Speicher werfen. Erst dann im Code
+  nach Fehlern suchen.
+- Bei neuen Features `LIBREVISION` und `LIBDATE` in `src/html_private.h` erhöhen und
+  dabei auch `Version:` in `package/html_gadget.readme` und `$VER` in `package/Install`
+  anpassen. Nur so lassen sich die Builds unterscheiden, und der Installer ersetzt alte
+  Versionen.
+- Datumsangaben (`$VER`, `LIBDATE`, `$Id`) immer im Format `TT.MM.JJJJ` schreiben, Tag
+  und Monat zweistellig mit führender Null, z. B. `01.10.2026`.
+
+## Neue Features und Testseiten
+
+- Jede neue Testseite in die `CHECKS`-Liste im `Makefile` eintragen und mit
+  `make check-update` eine `.expected`-Datei dafür erzeugen.
+- `test/*.html`: knappe Randfälle für die automatisierten Tests.
+- `demo/*.html`: deutschsprachige Vorführseiten für HTMLDemo. Sie dürfen nur vorhandene
+  Bilder verwenden (`boing.gif`, `kachel.gif`, `papier.gif`, `streifen.gif`,
+  `farben.iff`), müssen von `demo/example.html` aus verlinkt sein und in `DEMOFILES` im
+  `Makefile` stehen. `tools/mkdist.py` übernimmt `demo/*.html` automatisch.
+- Neue Features in `README.md` **und** `README.de.md` dokumentieren, Tags/Attribute
+  ggf. auch in `doc/*.doc`.

@@ -1,7 +1,7 @@
 #ifndef GADGETS_HTML_H
 #define GADGETS_HTML_H
 /*
-**  $VER: html.h 1.0 (30.9.2026)
+**  $VER: html.h 1.0 (30.09.2026)
 **  Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 **
 **  Definitions for the html.gadget ReAction class (AmigaOS 3.2)

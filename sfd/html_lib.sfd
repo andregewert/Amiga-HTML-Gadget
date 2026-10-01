@@ -1,4 +1,4 @@
-==id $Id: html_lib.sfd 1.0 (30.9.2026) $
+==id $Id: html_lib.sfd 1.0 (30.09.2026) $
 * "html.gadget"
 ==base _HTMLBase
 ==basetype struct Library *

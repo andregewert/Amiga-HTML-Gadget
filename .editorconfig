@@ -1,0 +1,18 @@
+# Amiga sources and texts are ISO-8859-1 (see CLAUDE.md, make charcheck)
+root = true
+
+[*]
+charset = latin1
+end_of_line = lf
+insert_final_newline = true
+
+[*.{c,h}]
+indent_style = space
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+# host only / GitHub: UTF-8
+[{README*.md,CLAUDE.md,tools/*.py,.claude/**}]
+charset = utf-8

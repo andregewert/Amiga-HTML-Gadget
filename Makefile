@@ -14,7 +14,7 @@ DEMOFLAGS := $(CPU) -Os -Wall -fno-common -Iinclude -noixemul
 LIBSRC  := src/html_lib.c src/html_class.c src/html_parse.c src/html_layout.c src/html_select.c src/html_clip.c
 LIBOBJ  := $(LIBSRC:src/%.c=build/%.o)
 
-DEMOFILES := $(addprefix bin/,example.html zweite.html hintergrund.html boing.gif farben.iff papier.gif kachel.gif streifen.gif)
+DEMOFILES := $(addprefix bin/,example.html zweite.html hintergrund.html tabellen.html umfluss.html boing.gif farben.iff papier.gif kachel.gif streifen.gif)
 FONTFILES := $(patsubst demo/fonts/%,bin/fonts/%,$(wildcard demo/fonts/*))
 
 # --- htmlttf.gadget: same core, FreeType renderer ---------------------------
@@ -66,9 +66,13 @@ bin/%: demo/%
 	@mkdir -p bin
 	cp $< $@
 
-# Amiga sources and texts must be ISO-8859-1: refuse UTF-8 sequences
+# Amiga sources and texts must be ISO-8859-1: refuse UTF-8 sequences.
+# Not checked: README*.md (GitHub) and tools/*.py (host only), both UTF-8.
+LATIN1  := $(wildcard src/*.c src/*.h include/*/*.h include/fd/*.fd sfd/*.sfd \
+           demo/*.c demo/*.html test/*.c test/*.html test/*.expected \
+           ttf/*.c ttf/include/*.h doc/*.doc package/* LICENSE Makefile)
 charcheck:
-	@if LC_ALL=C grep -lP '[\xC2-\xF4][\x80-\xBF]' src/*.c src/*.h include/gadgets/*.h demo/*.c demo/*.html; then \
+	@if LC_ALL=C grep -lP '[\xC2-\xF4][\x80-\xBF]' $(LATIN1); then \
 		echo "*** Die Dateien oben enthalten UTF-8, bitte nach ISO-8859-1 wandeln"; exit 1; fi
 
 build/%.o: src/%.c src/html_core.h src/html_private.h include/gadgets/html.h
@@ -102,10 +106,23 @@ test/ttfpreview: test/ttfpreview.c src/htmlttf_render.c src/htmlttf_render.h src
 preview: test/ttfpreview
 	./test/ttfpreview demo/example.html 560 preview.ppm demo/fonts Vera 12
 
+# page:width pairs; the full hosttest output must match test/<page>.expected
+CHECKS  := demo/example.html:400 demo/tabellen.html:400 demo/umfluss.html:400 \
+           test/floats.html:300 test/rowspan.html:400
+
 check: test/hosttest
-	./test/hosttest demo/example.html 400 q
-	./test/hosttest test/floats.html 300 q
-	./test/hosttest test/rowspan.html 400 q
+	@mkdir -p build/test; fail=0; \
+	for t in $(CHECKS); do f=$${t%:*}; w=$${t#*:}; n=$$(basename $$f .html); \
+		if ./test/hosttest $$f $$w > build/test/$$n.out && \
+		   diff -u test/$$n.expected build/test/$$n.out; then echo "ok   $$f"; \
+		else echo "FAIL $$f"; fail=1; fi; \
+	done; exit $$fail
+
+# accept the current layout as reference after an intended change
+check-update: test/hosttest
+	@for t in $(CHECKS); do f=$${t%:*}; w=$${t#*:}; n=$$(basename $$f .html); \
+		./test/hosttest $$f $$w > test/$$n.expected && echo "updated test/$$n.expected"; \
+	done
 
 # Aminet archive: dist/html_gadget.lha (+ html_gadget.readme)
 dist: all
@@ -114,4 +131,4 @@ dist: all
 clean:
 	rm -rf build bin dist test/hosttest test/ttfpreview preview.ppm
 
-.PHONY: all clean check charcheck preview dist
+.PHONY: all clean check check-update charcheck preview dist

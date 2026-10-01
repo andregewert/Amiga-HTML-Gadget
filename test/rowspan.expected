@@ -1,0 +1,61 @@
+title: rowspan  utf8=0 links=0 fonts=4
+size 400 x 221, 59 items, 0 anchors
+RECT   x=  10 y=  10 w= 165 h= 43 b= 0 f= 0 st=00 l=-1 c=00ffc0c0
+TEXT   x=  12 y=  27 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Links'
+TEXT   x=  54 y=  27 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'ueber'
+TEXT   x=  96 y=  27 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'drei'
+TEXT   x= 131 y=  27 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zeilen'
+TEXT   x= 179 y=  12 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'A1'
+TEXT   x= 200 y=  12 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'A2'
+FRAME  x= 176 y=   9 w=  21 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 197 y=   9 w=  21 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x= 179 y=  27 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'B1'
+TEXT   x= 200 y=  27 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'B2'
+FRAME  x= 176 y=  24 w=  21 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 197 y=  24 w=  21 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x= 179 y=  42 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'C1+C2'
+FRAME  x=   9 y=   9 w= 167 h= 45 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 176 y=  39 w=  42 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  12 y=  57 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'D0'
+TEXT   x= 179 y=  57 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'D1'
+TEXT   x= 200 y=  57 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'D2'
+FRAME  x=   9 y=  54 w= 167 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 176 y=  54 w=  21 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 197 y=  54 w=  21 h= 15 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=   8 y=   8 w= 211 h= 62 b= 0 f= 0 st=02 l=-1 c=ff000000
+TEXT   x=  13 y=  75 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'x'
+TEXT   x=  33 y=  75 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'hoch'
+TEXT   x=  33 y=  84 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'hoch'
+TEXT   x=  33 y=  93 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'hoch'
+TEXT   x=  33 y= 102 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'hoch'
+TEXT   x=  33 y= 111 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'hoch'
+TEXT   x=  33 y= 120 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'hoch'
+TEXT   x= 151 y=  75 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'y'
+FRAME  x=  11 y=  73 w=  18 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 149 y=  73 w=  18 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  13 y= 105 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'x2'
+TEXT   x= 151 y= 105 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'y2'
+FRAME  x=  31 y=  73 w= 116 h= 58 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  11 y=  88 w=  18 h= 43 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 149 y=  88 w=  18 h= 43 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  13 y= 135 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'x3'
+TEXT   x=  33 y= 135 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'bis'
+TEXT   x=  61 y= 135 w=  84 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Tabellenende'
+TEXT   x= 151 y= 135 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'y3'
+FRAME  x=  11 y= 133 w=  18 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  31 y= 133 w= 116 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 149 y= 133 w=  18 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=   8 y=  70 w= 162 h= 79 b= 0 f= 0 st=02 l=-1 c=ff000000
+TEXT   x=  13 y= 154 w=  29 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'Kopf'
+TEXT   x=  48 y= 154 w=  15 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'K1'
+FRAME  x=  11 y= 152 w=  33 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  46 y= 152 w=  19 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  13 y= 184 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'alle'
+TEXT   x=  48 y= 169 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'r1'
+FRAME  x=  46 y= 167 w=  19 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  48 y= 184 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'r2'
+FRAME  x=  46 y= 182 w=  19 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  48 y= 199 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'r3'
+FRAME  x=  11 y= 167 w=  33 h= 43 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  46 y= 197 w=  19 h= 13 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=   8 y= 149 w=  60 h= 64 b= 0 f= 0 st=02 l=-1 c=ff000000

@@ -1,0 +1,157 @@
+title: Zellen über mehrere Zeilen  utf8=0 links=1 fonts=21c
+size 400 x 503, 154 items, 0 anchors
+TEXT   x=   8 y=   8 w=  49 h= 13 b= 9 f= 4 st=02 l=-1 c=00000000 'Zellen'
+TEXT   x=  65 y=   8 w=  33 h= 13 b= 9 f= 4 st=02 l=-1 c=00000000 'über'
+TEXT   x= 106 y=   8 w=  57 h= 13 b= 9 f= 4 st=02 l=-1 c=00000000 'mehrere'
+TEXT   x= 171 y=   8 w=  49 h= 13 b= 9 f= 4 st=02 l=-1 c=00000000 'Zeilen'
+TEXT   x=   8 y=  29 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Mit'
+TEXT   x=  36 y=  29 w=  56 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 'rowspan'
+TEXT   x=  99 y=  29 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'reicht'
+TEXT   x= 148 y=  29 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'eine'
+TEXT   x= 183 y=  29 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zelle'
+TEXT   x= 225 y=  29 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'über'
+TEXT   x= 260 y=  29 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mehrere'
+TEXT   x= 316 y=  29 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zeilen,'
+TEXT   x=   8 y=  38 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mit'
+TEXT   x=  36 y=  38 w=  56 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 'colspan'
+TEXT   x=  99 y=  38 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'über'
+TEXT   x= 134 y=  38 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mehrere'
+TEXT   x= 190 y=  38 w=  56 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Spalten.'
+TEXT   x= 253 y=  38 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Beides'
+TEXT   x= 302 y=  38 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'lässt'
+TEXT   x= 344 y=  38 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'sich'
+TEXT   x=   8 y=  47 w=  84 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'kombinieren.'
+TEXT   x= 136 y=  64 w=  64 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'Chipsätze'
+RECT   x=  10 y=  75 w=  65 h= 17 b= 0 f= 0 st=00 l=-1 c=00c0c0c0
+TEXT   x=  14 y=  79 w=  57 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'Chipsatz'
+RECT   x=  77 y=  75 w=  78 h= 17 b= 0 f= 0 st=00 l=-1 c=00c0c0c0
+TEXT   x=  94 y=  79 w=  43 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'Modell'
+RECT   x= 157 y=  75 w= 169 h= 17 b= 0 f= 0 st=00 l=-1 c=00c0c0c0
+TEXT   x= 220 y=  79 w=  43 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'Grafik'
+FRAME  x=   9 y=  74 w=  67 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  76 y=  74 w=  80 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 156 y=  74 w= 171 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+RECT   x=  10 y=  94 w=  65 h= 55 b= 0 f= 0 st=00 l=-1 c=00ffe0c0
+TEXT   x=  14 y= 117 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'OCS/ECS'
+TEXT   x=  81 y=  98 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Amiga'
+TEXT   x= 123 y=  98 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '1000'
+TEXT   x= 161 y= 103 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '32'
+TEXT   x= 182 y= 103 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Farben,'
+TEXT   x= 161 y= 112 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'HAM'
+FRAME  x=  76 y=  93 w=  80 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  81 y= 117 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Amiga'
+TEXT   x= 123 y= 117 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '500'
+FRAME  x= 156 y=  93 w= 171 h= 38 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  76 y= 112 w=  80 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  81 y= 136 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Amiga'
+TEXT   x= 123 y= 136 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '3000'
+TEXT   x= 161 y= 136 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'dazu'
+TEXT   x= 196 y= 136 w= 126 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Productivity-Modus'
+FRAME  x=   9 y=  93 w=  67 h= 57 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  76 y= 131 w=  80 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 156 y= 131 w= 171 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+RECT   x=  10 y= 151 w=  65 h= 36 b= 0 f= 0 st=00 l=-1 c=00c0e0ff
+TEXT   x=  14 y= 164 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'AGA'
+TEXT   x=  81 y= 155 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Amiga'
+TEXT   x= 123 y= 155 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '1200'
+TEXT   x= 161 y= 160 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '256'
+TEXT   x= 189 y= 160 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Farben,'
+TEXT   x= 161 y= 169 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'HAM8'
+FRAME  x=  76 y= 150 w=  80 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  81 y= 174 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Amiga'
+TEXT   x= 123 y= 174 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '4000'
+FRAME  x=   9 y= 150 w=  67 h= 38 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 156 y= 150 w= 171 h= 38 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  76 y= 169 w=  80 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+RECT   x=  10 y= 189 w= 316 h= 17 b= 0 f= 0 st=00 l=-1 c=00ffff80
+TEXT   x=  70 y= 193 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zelle'
+TEXT   x= 112 y= 193 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'über'
+TEXT   x= 147 y= 193 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'alle'
+TEXT   x= 182 y= 193 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'drei'
+TEXT   x= 217 y= 193 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Spalten'
+FRAME  x=   9 y= 188 w= 318 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=   8 y=  73 w= 320 h=135 b= 0 f= 0 st=02 l=-1 c=ff000000
+TEXT   x=   8 y= 214 w=  64 h= 11 b= 7 f= 3 st=02 l=-1 c=00000000 'Vertikale'
+TEXT   x=  79 y= 214 w=  78 h= 11 b= 7 f= 3 st=02 l=-1 c=00000000 'Ausrichtung'
+TEXT   x=   8 y= 233 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Die'
+TEXT   x=  36 y= 233 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'hohe'
+TEXT   x=  71 y= 233 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zelle'
+TEXT   x= 113 y= 233 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'in'
+TEXT   x= 134 y= 233 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'der'
+TEXT   x= 162 y= 233 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Mitte'
+TEXT   x= 204 y= 233 w=  56 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'bestimmt'
+TEXT   x= 267 y= 233 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'die'
+TEXT   x= 295 y= 233 w=  77 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zeilenhöhe;'
+TEXT   x=   8 y= 242 w=  48 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 'valign'
+TEXT   x=  63 y= 242 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'setzt'
+TEXT   x= 105 y= 242 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'den'
+TEXT   x= 133 y= 242 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Inhalt'
+TEXT   x= 182 y= 242 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'der'
+TEXT   x= 210 y= 242 w=  91 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Nachbarzellen'
+TEXT   x= 308 y= 242 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'oben,'
+TEXT   x= 350 y= 242 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mittig'
+TEXT   x=   8 y= 251 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'oder'
+TEXT   x=  43 y= 251 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'unten.'
+TEXT   x=  16 y= 276 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'oben'
+TEXT   x=  63 y= 276 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'eins'
+TEXT   x=  63 y= 285 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'zwei'
+TEXT   x=  63 y= 294 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'drei'
+TEXT   x=  63 y= 303 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'vier'
+TEXT   x=  63 y= 312 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'fünf'
+TEXT   x=  63 y= 321 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'sechs'
+TEXT   x= 110 y= 276 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'unten'
+FRAME  x=  11 y= 271 w=  45 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 105 y= 271 w=  52 h= 19 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  16 y= 309 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mitte'
+TEXT   x= 110 y= 309 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'rechts'
+FRAME  x=  58 y= 271 w=  45 h= 64 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  11 y= 292 w=  45 h= 43 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x= 105 y= 292 w=  52 h= 43 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=   8 y= 268 w= 152 h= 70 b= 0 f= 0 st=02 l=-1 c=ff000000
+TEXT   x=   8 y= 344 w=  22 h= 11 b= 7 f= 3 st=02 l=-1 c=00000000 'Bis'
+TEXT   x=  37 y= 344 w=  22 h= 11 b= 7 f= 3 st=02 l=-1 c=00000000 'zum'
+TEXT   x=  66 y= 344 w=  29 h= 11 b= 7 f= 3 st=02 l=-1 c=00000000 'Ende'
+TEXT   x=   8 y= 363 w=  88 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 'rowspan="0"'
+TEXT   x= 103 y= 363 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'reicht'
+TEXT   x= 152 y= 363 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'bis'
+TEXT   x= 180 y= 363 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'zum'
+TEXT   x= 208 y= 363 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Ende'
+TEXT   x= 243 y= 363 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'des'
+TEXT   x=   8 y= 372 w= 126 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Tabellenabschnitts'
+TEXT   x= 141 y= 372 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '('
+TEXT   x= 148 y= 372 w=  40 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 'thead'
+TEXT   x= 188 y= 372 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 ','
+TEXT   x= 202 y= 372 w=  40 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 'tbody'
+TEXT   x= 242 y= 372 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '),'
+TEXT   x= 263 y= 372 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'ein'
+TEXT   x= 291 y= 372 w=  14 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'zu'
+TEXT   x= 312 y= 372 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'großer'
+TEXT   x= 361 y= 372 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Wert'
+TEXT   x=   8 y= 381 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'endet'
+TEXT   x=  50 y= 381 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mit'
+TEXT   x=  78 y= 381 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'der'
+TEXT   x= 106 y= 381 w=  56 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Tabelle.'
+RECT   x=  12 y= 402 w=  69 h= 15 b= 0 f= 0 st=00 l=-1 c=00c0c0c0
+TEXT   x=  32 y= 405 w=  29 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'Kopf'
+RECT   x=  85 y= 402 w=  55 h= 15 b= 0 f= 0 st=00 l=-1 c=00c0c0c0
+TEXT   x=  91 y= 405 w=  43 h=  9 b= 6 f= 2 st=02 l=-1 c=00000000 'Spalte'
+FRAME  x=  11 y= 401 w=  71 h= 17 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  84 y= 401 w=  57 h= 17 b= 0 f= 0 st=00 l=-1 c=ff000000
+RECT   x=  12 y= 421 w=  69 h= 53 b= 0 f= 0 st=00 l=-1 c=00e0ffe0
+TEXT   x=  15 y= 438 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'ganzer'
+TEXT   x=  15 y= 447 w=  63 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Abschnitt'
+TEXT   x=  88 y= 424 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zeile'
+TEXT   x= 130 y= 424 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '1'
+FRAME  x=  84 y= 420 w=  57 h= 17 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  88 y= 443 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zeile'
+TEXT   x= 130 y= 443 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '2'
+FRAME  x=  84 y= 439 w=  57 h= 17 b= 0 f= 0 st=00 l=-1 c=ff000000
+TEXT   x=  88 y= 462 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zeile'
+TEXT   x= 130 y= 462 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '3'
+FRAME  x=  11 y= 420 w=  71 h= 55 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=  84 y= 458 w=  57 h= 17 b= 0 f= 0 st=00 l=-1 c=ff000000
+FRAME  x=   8 y= 398 w= 136 h= 80 b= 0 f= 0 st=02 l=-1 c=ff000000
+TEXT   x=   8 y= 486 w=  42 h=  9 b= 6 f= 2 st=01 l= 0 c=02000000 'Zurück'
+TEXT   x=  57 y= 486 w=  21 h=  9 b= 6 f= 2 st=01 l= 0 c=02000000 'zur'
+TEXT   x=  85 y= 486 w=  63 h=  9 b= 6 f= 2 st=01 l= 0 c=02000000 'Testseite'
+link 0: example.html#tabellen

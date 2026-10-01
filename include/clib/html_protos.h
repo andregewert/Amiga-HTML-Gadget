@@ -4,7 +4,7 @@
 #define CLIB_HTML_PROTOS_H
 
 /*
-**   $VER: html_protos.h 1.0 $Id: html_lib.sfd 1.0 (30.9.2026) $
+**   $VER: html_protos.h 1.0 $Id: html_lib.sfd 1.0 (30.09.2026) $
 **
 **   C prototypes. For use with 32 bit integers only.
 **

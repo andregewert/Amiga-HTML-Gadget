@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "make -s -C \"$CLAUDE_PROJECT_DIR\" charcheck >&2 || exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}

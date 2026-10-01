@@ -4,7 +4,7 @@
 #define CLIB_HTMLTTF_PROTOS_H
 
 /*
-**   $VER: htmlttf_protos.h 1.0 $Id: htmlttf_lib.sfd 1.0 (30.9.2026) $
+**   $VER: htmlttf_protos.h 1.0 $Id: htmlttf_lib.sfd 1.0 (30.09.2026) $
 **
 **   C prototypes. For use with 32 bit integers only.
 **

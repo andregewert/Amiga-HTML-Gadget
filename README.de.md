@@ -158,7 +158,8 @@ die FreeType-2.3.8-Quellen (Aminet `freetype-2.3.8`, Standardpfad `~/AmiLib/free
 
 ```
 make            # bin/html.gadget, bin/HTMLDemo, Beispielseiten und -bilder
-make check      # Parser + Layout auf dem Host (mit AddressSanitizer)
+make check      # Parser + Layout auf dem Host (mit AddressSanitizer), Vergleich mit test/*.expected
+make check-update  # gewollte Layoutänderung als neue Referenz übernehmen
 make CPU=-m68020
 make dist       # Aminet-Paket html_gadget.lha (mit Icons, Installer-Skript, Autodocs)
 ```

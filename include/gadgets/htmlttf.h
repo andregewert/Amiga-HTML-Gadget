@@ -1,7 +1,7 @@
 #ifndef GADGETS_HTMLTTF_H
 #define GADGETS_HTMLTTF_H
 /*
-**  $VER: htmlttf.h 1.0 (30.9.2026)
+**  $VER: htmlttf.h 1.0 (30.09.2026)
 **  Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 **
 **  htmlttf.gadget - the html.gadget renderer with FreeType fonts

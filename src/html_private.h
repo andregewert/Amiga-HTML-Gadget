@@ -17,8 +17,8 @@
 #define LIBNAME     "html.gadget"
 #endif
 #define LIBVERSION  1
-#define LIBREVISION 0
-#define LIBDATE     "30.9.2026"
+#define LIBREVISION 1
+#define LIBDATE     "01.10.2026"
 
 extern struct ExecBase      *SysBase;
 extern struct DosLibrary    *DOSBase;

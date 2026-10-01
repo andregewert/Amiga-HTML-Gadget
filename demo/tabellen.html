@@ -1,0 +1,36 @@
+<html><head><title>Zellen &uuml;ber mehrere Zeilen</title></head>
+<body bgcolor="#FFFFFF">
+<h2>Zellen &uuml;ber mehrere Zeilen</h2>
+<p>Mit <tt>rowspan</tt> reicht eine Zelle &uuml;ber mehrere Zeilen, mit <tt>colspan</tt>
+&uuml;ber mehrere Spalten. Beides l&auml;sst sich kombinieren.</p>
+
+<table border="1" cellpadding="4" cellspacing="0">
+<caption><b>Chips&auml;tze</b></caption>
+<tr bgcolor="#C0C0C0"><th>Chipsatz<th>Modell<th>Grafik
+<tr><td rowspan="3" bgcolor="#FFE0C0" valign="middle">OCS/ECS<td>Amiga 1000<td rowspan="2">32 Farben,<br>HAM
+<tr><td>Amiga 500
+<tr><td>Amiga 3000<td>dazu Productivity-Modus
+<tr><td rowspan="2" bgcolor="#C0E0FF">AGA<td>Amiga 1200<td rowspan="2">256 Farben,<br>HAM8
+<tr><td>Amiga 4000
+<tr><td colspan="3" align="center" bgcolor="#FFFF80">Zelle &uuml;ber alle drei Spalten
+</table>
+
+<h3>Vertikale Ausrichtung</h3>
+<p>Die hohe Zelle in der Mitte bestimmt die Zeilenh&ouml;he; <tt>valign</tt> setzt den
+Inhalt der Nachbarzellen oben, mittig oder unten.</p>
+<table border="1" cellpadding="4">
+<tr><td valign="top">oben<td rowspan="2">eins<br>zwei<br>drei<br>vier<br>f&uuml;nf<br>sechs<td valign="bottom">unten
+<tr><td valign="middle">mitte<td>rechts
+</table>
+
+<h3>Bis zum Ende</h3>
+<p><tt>rowspan="0"</tt> reicht bis zum Ende des Tabellenabschnitts (<tt>thead</tt>,
+<tt>tbody</tt>), ein zu gro&szlig;er Wert endet mit der Tabelle.</p>
+<table border="1" cellpadding="3">
+<thead><tr bgcolor="#C0C0C0"><th rowspan="0">Kopf<th>Spalte</thead>
+<tbody><tr><td rowspan="0" bgcolor="#E0FFE0">ganzer<br>Abschnitt<td>Zeile 1
+<tr><td>Zeile 2<tr><td>Zeile 3</tbody>
+</table>
+
+<p><a href="example.html#tabellen">Zur&uuml;ck zur Testseite</a></p>
+</body></html>

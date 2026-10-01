@@ -127,7 +127,8 @@ Cross compiled on Linux with [bebbo's amiga-gcc](https://codeberg.org/bebbo/amig
 
 ```
 make            # bin/html.gadget, bin/htmlttf.gadget, bin/HTMLDemo, demo pages
-make check      # parser + layout tests on the host (AddressSanitizer)
+make check      # parser + layout tests on the host (AddressSanitizer), compared to test/*.expected
+make check-update  # accept an intended layout change as new reference
 make preview    # renders demo/example.html with the FreeType renderer to preview.ppm
 make dist       # Aminet archive dist/html_gadget.lha (icons, Installer script, Autodocs)
 make CPU=-m68020
