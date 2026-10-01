@@ -312,7 +312,8 @@ static void emit_bullet(struct LCtx *L, struct Bullet *bu, long y, long base)
             it->w = it->h = sz;
             it->x = bu->x - L->em / 2 - sz;
             if (it->x < 0) it->x = 0;
-            it->y = y + base - fb / 2 - sz / 2 - (fb > 6 ? 1 : 0);
+            /* vertically centred in the text line of the bullet font */
+            it->y = y + base - fb + (fheight(L, bu->font) - sz) / 2;
             it->color = bu->color;
         }
     }
