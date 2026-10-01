@@ -36,10 +36,10 @@ die Klasse auch im Programmverzeichnis).
 | Hintergründe | `bgcolor` bei `body`, `table`, `tr`, `td`, `th`; Hintergrundbilder `<body background>` (über die Seite gekachelt, scrollt mit) sowie `background` bei `table`, `td`, `th` |
 | Zeichensatz | Latin-1; UTF-8 wird automatisch erkannt und nach Latin-1 gewandelt. Alle HTML-4-Latin-1-Entities, `&#nnn;`, `&#xhh;` und typografische Zeichen (`&euro;` → „EUR", `&hellip;` → „...") |
 | Formulare | `input` wird als Platzhalter-Rahmen gezeichnet (nicht bedienbar) |
-| Bilder | `img` (und `input type=image`) über **datatypes.library** in jedem installierten Format (GIF, IFF, PNG, JPEG …), an die Screen-Palette angepasst, Transparenz über die Maske, `width`/`height` skalieren das Bild (per `PDTM_SCALE`, sonst mit `BitMapScale()`; fehlt eine Angabe, bleibt das Seitenverhältnis erhalten). Nicht ladbare Bilder erscheinen als Rahmen mit `alt`-Text |
+| Bilder | `img` (und `input type=image`) über **datatypes.library** in jedem installierten Format (GIF, IFF, PNG, JPEG …), an die Screen-Palette angepasst, Transparenz über die Maske, `width`/`height` skalieren das Bild (per `PDTM_SCALE`, sonst mit `BitMapScale()`; fehlt eine Angabe, bleibt das Seitenverhältnis erhalten). Nicht ladbare Bilder erscheinen als Rahmen mit `alt`-Text. Bei `align=left/right` umfließt der Text das Bild (`hspace`, `vspace`, `br clear=left/right/all`) |
 
 Nicht unterstützt: CSS, JavaScript, Bilder aus dem Netz, Frames,
-umfließende Tabellen/Bilder (`align=left/right` positioniert nur), Formular-Bedienung.
+umfließende Tabellen (`align=left/right` positioniert nur), Formular-Bedienung.
 `<script>`, `<style>`, `<title>` & Co. werden korrekt übersprungen.
 
 ## Benutzung

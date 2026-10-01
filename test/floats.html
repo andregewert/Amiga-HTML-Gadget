@@ -1,0 +1,19 @@
+<html><head><title>Floating images</title></head>
+<body>
+<h2>Left</h2>
+<p><img src="a.gif" align="left">Text flows to the right of the left aligned picture
+and wraps around it until the picture ends, then uses the full width again
+below it like any other paragraph does.</p>
+<h2>Right</h2>
+<p><img src="b.gif" align="right" hspace="4" vspace="2">This paragraph has a right
+aligned picture with hspace and vspace, so the lines get shorter on the right side.
+<br clear="right">After br clear=right this line starts below the picture.</p>
+<h2>Both</h2>
+<p><img src="c.gif" align="left"><img src="d.gif" align="right">Lines between two pictures.</p>
+<p>A picture in the middle of a line <img src="e.gif" align="left">is placed after the line.
+More words to see the wrapping next to it, and more and more until it is done.</p>
+<ul><li><img src="f.gif" align="left">List item next to a picture</ul>
+<hr>
+<p><img alt="No picture" align="right">Placeholder with alt text floats too.</p>
+<table border=1><tr><td><img src="g.gif" align="left">cell text next to a picture in a cell</td></tr></table>
+</body></html>

@@ -69,11 +69,12 @@ html.gadget/HTML_Visible
     <blockquote> <address> <b> <strong> <i> <em> <u> <s> <strike> <tt>
     <code> <kbd> <samp> <var> <cite> <dfn> <big> <small> <sub> <sup> <q>
     <nobr> <font size color face> <a href name> <ul> <ol> <li> <dl> <dt>
-    <dd> <table> <caption> <tr> <td> <th> (colspan, rowspan, width, align,
-    valign, bgcolor, border, cellpadding, cellspacing, nowrap, background)
-    <img> <input> (as boxes). Entities of HTML 4 Latin-1 plus numeric entities; UTF-8
-    input is detected and converted to Latin-1. Not supported: CSS,
-    JavaScript, frames, floating tables and images.
+    <dd> <table> <caption> <tr> <td> <th> (colspan, rowspan, width, align, valign,
+    bgcolor, border, cellpadding, cellspacing, nowrap, background) <img>
+    (align=left/right floats with text flowing around it, hspace, vspace,
+    <br clear>) <input> (as boxes). Entities of HTML 4 Latin-1 plus numeric
+    entities; UTF-8 input is detected and converted to Latin-1. Not
+    supported: CSS, JavaScript, frames, rowspan, floating tables.
 
    USAGE
     Link clicks are reported with IDCMP_GADGETUP (WMHI_GADGETUP), Code =
