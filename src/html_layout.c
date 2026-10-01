@@ -3,7 +3,7 @@
  *
  * Block layout with margin collapsing, inline line breaking at blanks,
  * lists, <pre>, <hr> and a simple automatic table layout (colspan,
- * cellpadding/cellspacing/border/width, align/valign, bgcolor).
+ * rowspan, cellpadding/cellspacing/border/width, align/valign, bgcolor).
  *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
  * Released under the MIT License, see LICENSE.
@@ -747,8 +747,9 @@ static void input(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
 struct TCell {
     struct HNode *n;
     int           col, span;
+    long          row, rspan;        /* first row and number of rows covered */
     long          min, max, pct;
-    long          h;
+    long          h, y;
     long          istart, iend, bgidx;
     unsigned long bg;
     int           valign;
@@ -756,6 +757,7 @@ struct TCell {
 
 struct TRow {
     struct HNode *n;
+    struct HNode *group;             /* thead/tbody/tfoot, or the table */
     long          first, ncells;
 };
 
@@ -792,7 +794,7 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
     struct TRow *rows = 0;
     struct TCell *cells = 0;
     long nrows = 0, ncells = 0, ncols = 0, i, j, k;
-    long *colmin, *colmax, *colw, *colx;
+    long *colmin, *colmax, *colw, *colx, *busy;
     long border, spacing, padding, cb, overhead, avail, tw, tx, ty, y0, twant = -1;
     long summin = 0, summax = 0;
     unsigned long tbg;
@@ -833,7 +835,11 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
             for (r = rs; r; r = (rs == c ? 0 : r->next)) {
                 if (r->tag == T_CAPTION && !caption) caption = r;
                 if (r->tag != T_TR) continue;
-                if (i) { rows[nrows].n = r; rows[nrows].first = ncells; }
+                if (i) {
+                    rows[nrows].n = r;
+                    rows[nrows].group = rs == c ? n : c;
+                    rows[nrows].first = ncells;
+                }
                 {
                     struct HNode *d;
                     long cnt = 0;
@@ -856,11 +862,12 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
         }
     }
 
-    if (!(colmem = hsys_alloc(pool, 4 * MAXCOLS * sizeof(long)))) { L->oom = 1; goto done; }
+    if (!(colmem = hsys_alloc(pool, 5 * MAXCOLS * sizeof(long)))) { L->oom = 1; goto done; }
     colmin = colmem;
     colmax = colmem + MAXCOLS;
     colw = colmem + 2 * MAXCOLS;
     colx = colmem + 3 * MAXCOLS;
+    busy = colmem + 4 * MAXCOLS;           /* rows still covered by a rowspan above */
 
     add_margin(b, 0);
     apply_margin(b);
@@ -875,20 +882,29 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
     }
 
     /* column assignment and min/max widths */
-    for (i = 0; i < MAXCOLS; i++) colmin[i] = colmax[i] = 0;
+    for (i = 0; i < MAXCOLS; i++) colmin[i] = colmax[i] = busy[i] = 0;
     for (i = 0; i < nrows; i++) {
         int col = 0;
+        long grows = 1;                         /* rows left in this row group */
+        while (i + grows < nrows && rows[i + grows].group == rows[i].group) grows++;
         for (j = 0; j < rows[i].ncells; j++) {
             struct TCell *ce = &cells[rows[i].first + j];
             struct Style cs;
             int cal;
             long span = (a = html_attr(ce->n, "colspan")) ? h_atol(a) : 1;
+            long rspan = (a = html_attr(ce->n, "rowspan")) ? h_atol(a) : 1;
             long w;
+            while (col < MAXCOLS && busy[col]) col++;
             if (span < 1) span = 1;
             if (col + span > MAXCOLS) span = MAXCOLS - col;
             if (span < 1) { ce->span = 0; continue; }
+            if (rspan == 0 || rspan > grows) rspan = grows;    /* 0: to the end of the group */
+            if (rspan < 1) rspan = 1;
             ce->col = col;
             ce->span = (int)span;
+            ce->row = i;
+            ce->rspan = rspan;
+            for (k = col; k < col + span; k++) if (busy[k] < rspan) busy[k] = rspan;
             col += (int)span;
             if (col > ncols) ncols = col;
 
@@ -924,6 +940,7 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
                 if (ce->max > colmax[ce->col]) colmax[ce->col] = ce->max;
             }
         }
+        for (k = 0; k < MAXCOLS; k++) if (busy[k]) busy[k]--;
     }
     /* spanning cells: distribute what is missing evenly */
     for (i = 0; i < ncells; i++) {
@@ -1041,23 +1058,31 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
             h = cell_content(L, ce->n, &cs, cx + cb + padding, cw - 2 * padding, ty + cb + padding, cal);
             ce->iend = L->lay->nitems;
             ce->h = h + 2 * padding + 2 * cb;
+            ce->y = ty;
             ce->min = cw;                                 /* remember width for the frame */
             ce->max = cx;
-            if (ce->h > rowh) rowh = ce->h;
+            if (ce->rspan == 1 && ce->h > rowh) rowh = ce->h;
         }
-        /* vertical alignment, backgrounds, cell frames */
-        for (j = 0; j < rows[i].ncells; j++) {
-            struct TCell *ce = &cells[rows[i].first + j];
-            long off, m;
-            if (!ce->span) continue;
-            off = ce->valign == 0 ? 0 : ce->valign == 2 ? rowh - ce->h : (rowh - ce->h) / 2;
+        /* cells spanning down to this row: the last row grows if they need more */
+        for (j = 0; j < rows[i].first + rows[i].ncells; j++) {
+            struct TCell *ce = &cells[j];
+            if (ce->span && ce->rspan > 1 && ce->row + ce->rspan - 1 == i && ce->h - (ty - ce->y) > rowh)
+                rowh = ce->h - (ty - ce->y);
+        }
+        /* vertical alignment, backgrounds, cell frames of the cells ending here */
+        for (j = 0; j < rows[i].first + rows[i].ncells; j++) {
+            struct TCell *ce = &cells[j];
+            long off, m, ch;
+            if (!ce->span || ce->row + ce->rspan - 1 != i) continue;
+            ch = ty + rowh - ce->y;
+            off = ce->valign == 0 ? 0 : ce->valign == 2 ? ch - ce->h : (ch - ce->h) / 2;
             if (off && !L->measure)
                 for (m = ce->istart; m < ce->iend; m++) L->lay->items[m].y += off;
-            if (ce->bgidx >= 0 && !L->measure) L->lay->items[ce->bgidx].h = rowh - 2 * cb;
+            if (ce->bgidx >= 0 && !L->measure) L->lay->items[ce->bgidx].h = ch - 2 * cb;
             if (cb) {
                 struct HItem *it = emit(L, IT_FRAME);
                 if (it) {
-                    it->x = ce->max; it->y = ty; it->w = ce->min + 2; it->h = rowh;
+                    it->x = ce->max; it->y = ce->y; it->w = ce->min + 2; it->h = ch;
                     it->color = COL_NONE;
                 }
             }
@@ -1078,7 +1103,7 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
     b->y = ty;
 
 done:
-    if (colmem) hsys_free(pool, colmem, 4 * MAXCOLS * sizeof(long));
+    if (colmem) hsys_free(pool, colmem, 5 * MAXCOLS * sizeof(long));
     if (rows) hsys_free(pool, rows, nrows * sizeof(*rows));
     if (cells) hsys_free(pool, cells, ncells * sizeof(*cells));
 }
