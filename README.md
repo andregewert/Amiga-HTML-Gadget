@@ -28,14 +28,14 @@
 | Fonts | `<font size="1-7/+n/-n" color="…" face="courier…">` |
 | Lists | `ul` (disc/circle/square, nested), `ol` (type 1/a/A/i/I, start, value), `dl`/`dt`/`dd`, `menu`, `dir` |
 | Links | `<a href>` (link/vlink/alink colours, visited links), anchors `<a name>` and `id="…"`, `#anchor` links are handled by the gadget |
-| Tables | automatic column widths, `colspan`, `border`, `cellpadding`, `cellspacing`, `width` (px/%), `align`, `valign`, `bgcolor`, `nowrap`, `caption`, `th`, nested tables |
+| Tables | automatic column widths, `colspan`, `rowspan`, `border`, `cellpadding`, `cellspacing`, `width` (px/%), `align`, `valign`, `bgcolor`, `nowrap`, `caption`, `th`, nested tables |
 | Backgrounds | `bgcolor` on `body`, `table`, `tr`, `td`, `th`; tiled background pictures on `body` (scrolls with the page), `table`, `td`, `th` |
 | Pictures | `img` (and `input type=image`) in every format a **datatype** exists for; GIF transparency, PNG alpha (htmlttf.gadget); scaled with `width`/`height`; `alt` text for missing pictures |
 | Selection | drag with the mouse (auto-scrolls at the edges), double click selects a word; copy to the clipboard as IFF FTXT |
 | Character set | Latin-1; UTF-8 documents are detected and converted. All HTML 4 Latin-1 entities, `&#nnn;`, `&#xhh;` |
 | Forms | `input` is drawn as a placeholder box (not usable) |
 
-Not supported: CSS, JavaScript, network access, frames, `rowspan`, text flowing around
+Not supported: CSS, JavaScript, network access, frames, text flowing around
 tables and pictures (`align=left/right` only positions them), usable forms.
 
 ## Installation
