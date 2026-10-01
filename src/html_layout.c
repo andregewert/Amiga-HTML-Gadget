@@ -6,7 +6,7 @@
  * and a simple automatic table layout (colspan, rowspan,
  * cellpadding/cellspacing/border/width, align/valign, bgcolor).
  *
- * Copyright (c) 2026 AndrÃ© Gewert <agewert@ubergeek.de>
+ * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
  * Released under the MIT License, see LICENSE.
  */
 #include "html_core.h"
