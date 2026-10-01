@@ -16,9 +16,9 @@ Features
  - headings, paragraphs, <pre>, <blockquote>, alignment, horizontal rules
  - text styles, <font size color face>, sub/superscript
  - lists (ul/ol with all numbering types, nested; dl)
- - tables with automatic column widths, colspan, border, cellpadding,
-   cellspacing, width in pixels or %, align/valign, bgcolor, captions,
-   nested tables
+ - tables with automatic column widths, colspan, rowspan, border,
+   cellpadding, cellspacing, width in pixels or %, align/valign, bgcolor,
+   captions, nested tables
  - links with visited/active colours, anchors, "#anchor" links handled
    by the gadget itself, link clicks reported as GADGETUP
  - pictures in every format a datatype exists for (GIF transparency, PNG
@@ -62,7 +62,7 @@ programs, run the Installer script or copy Classes/Gadgets/#? to
 SYS:Classes/Gadgets/.
 
 Not supported: CSS, JavaScript, frames, forms (drawn as boxes only),
-rowspan, text flowing around tables and pictures, network access.
+text flowing around tables and pictures, network access.
 
 License
 -------

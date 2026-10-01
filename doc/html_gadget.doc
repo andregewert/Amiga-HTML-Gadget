@@ -69,7 +69,7 @@ html.gadget/HTML_Visible
     <blockquote> <address> <b> <strong> <i> <em> <u> <s> <strike> <tt>
     <code> <kbd> <samp> <var> <cite> <dfn> <big> <small> <sub> <sup> <q>
     <nobr> <font size color face> <a href name> <ul> <ol> <li> <dl> <dt>
-    <dd> <table> <caption> <tr> <td> <th> (colspan, width, align, valign,
+    <dd> <table> <caption> <tr> <td> <th> (colspan, rowspan, width, align, valign,
     bgcolor, border, cellpadding, cellspacing, nowrap, background) <img>
     (align=left/right floats with text flowing around it, hspace, vspace,
     <br clear>) <input> (as boxes). Entities of HTML 4 Latin-1 plus numeric
