@@ -104,6 +104,7 @@ preview: test/ttfpreview
 
 check: test/hosttest
 	./test/hosttest demo/example.html 400 q
+	./test/hosttest test/floats.html 300 q
 
 # Aminet archive: dist/html_gadget.lha (+ html_gadget.readme)
 dist: all

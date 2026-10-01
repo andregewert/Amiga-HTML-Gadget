@@ -2,7 +2,8 @@
  * html_layout.c - turns the node tree into positioned draw items
  *
  * Block layout with margin collapsing, inline line breaking at blanks,
- * lists, <pre>, <hr> and a simple automatic table layout (colspan,
+ * lists, <pre>, <hr>, floating images (<img align=left|right>, <br clear>)
+ * and a simple automatic table layout (colspan,
  * cellpadding/cellspacing/border/width, align/valign, bgcolor).
  *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
@@ -48,8 +49,24 @@ struct Bullet {
     unsigned long color;
 };
 
+/* floating box (<img align=left|right>). x/y/w/h is the occupied area
+ * including hspace/vspace and the gap to the text; ix/iy is the offset of
+ * the picture inside it. Floats live in LCtx.floats; every formatting
+ * context (page, table cell) owns the range from its Box.fbase on.    */
+enum { FL_LEFT = 1, FL_RIGHT = 2 };
+
+struct HFloat {
+    long          x, y, w, h;
+    long          ix, iy;
+    int           side, pending;
+    struct Frag   f;
+};
+
 struct Box {
     long          x0, width, y;
+    long          lx, lw;        /* free part of the current line, lx relative to x0 */
+    int           lset;          /* lx/lw are valid for the current line */
+    long          fbase;         /* first float of this formatting context */
     long          curx;
     long          group;         /* first frag of the current unbreakable word */
     long          space;         /* pending blank width */
@@ -67,6 +84,8 @@ struct LCtx {
     struct HEnv    *env;
     struct Frag    *frags;
     long            nfr, maxfr;
+    struct HFloat  *floats;
+    long            nfloats, maxfloats;
     int             measure;
     int             soft;           /* next flushed line continues a wrapped one */
     long            max_right;
@@ -299,6 +318,130 @@ static void emit_bullet(struct LCtx *L, struct Bullet *bu, long y, long base)
     }
 }
 
+/* draws a FK_BOX fragment with its top left corner at x/top */
+static void emit_box(struct LCtx *L, const struct Frag *f, long x, long top)
+{
+    struct HItem *it;
+
+    if (f->img) {
+        if ((it = emit(L, IT_IMAGE))) {
+            it->link = f->link;
+            it->x = x;
+            it->y = top;
+            it->w = f->w;
+            it->h = f->asc;
+            it->img = f->img;
+        }
+        return;
+    }
+    /* frame, optional label */
+    if ((it = emit(L, IT_FRAME))) {
+        it->style = f->flags;
+        it->link = f->link;
+        it->x = x;
+        it->y = top;
+        it->w = f->w;
+        it->h = f->asc;
+        it->color = f->color;
+    }
+    if (f->len) {
+        long tw = twidth(L, f->font, f->style, f->s, f->len);
+        long th = fheight(L, f->font);
+        if (tw <= f->w - 4 && th <= f->asc - 2 && (it = emit(L, IT_TEXT))) {
+            it->font = f->font;
+            it->style = f->style & ~HS_UNDERLINED;
+            it->link = f->link;
+            it->x = x + (f->w - tw) / 2;
+            it->y = top + (f->asc - th) / 2;
+            it->w = tw;
+            it->h = th;
+            it->base = (short)fbase(L, f->font);
+            it->color = f->color;
+            it->s = f->s;
+            it->len = f->len;
+            it->flags = IF_NOSEL;
+        }
+    }
+}
+
+/* free horizontal range [*l, *r) of box b between y and y+h. Returns 1 if
+ * a float narrows it; *next is then the lowest bottom of those floats.  */
+static int float_range(struct LCtx *L, struct Box *b, long y, long h, long *l, long *r, long *next)
+{
+    long i;
+    int hit = 0;
+
+    *l = b->x0;
+    *r = b->x0 + b->width;
+    if (h < 1) h = 1;
+    for (i = b->fbase; i < L->nfloats; i++) {
+        struct HFloat *fl = &L->floats[i];
+        if (fl->pending || fl->y >= y + h || fl->y + fl->h <= y) continue;
+        if (fl->side == FL_LEFT) {
+            if (fl->x + fl->w <= *l) continue;
+            *l = fl->x + fl->w;
+        } else {
+            if (fl->x >= *r) continue;
+            *r = fl->x;
+        }
+        if (!hit || fl->y + fl->h < *next) *next = fl->y + fl->h;
+        hit = 1;
+    }
+    return hit;
+}
+
+/* lowest bottom of the placed floats on the given sides */
+static long float_bottom(struct LCtx *L, struct Box *b, int sides)
+{
+    long i, y = 0;
+    for (i = b->fbase; i < L->nfloats; i++) {
+        struct HFloat *fl = &L->floats[i];
+        if (!fl->pending && (fl->side & sides) && fl->y + fl->h > y) y = fl->y + fl->h;
+    }
+    return y;
+}
+
+/* starts a line whose first piece needs 'need' pixels and is h high: moves
+ * it below floats until it fits, then sets the free range lx/lw        */
+static void line_setup(struct LCtx *L, struct Box *b, long need, long h)
+{
+    long l, r, next;
+
+    apply_margin(b);
+    while (float_range(L, b, b->y, h, &l, &r, &next) && need > r - l && next > b->y)
+        b->y = next;
+    b->lx = l - b->x0;
+    b->lw = r - l;
+    if (b->lw < 1) b->lw = 1;
+    b->lset = 1;
+}
+
+/* finds the place of a float: at the current y or below, not above an
+ * earlier float, where it fits next to the others                      */
+static void float_place(struct LCtx *L, struct Box *b, struct HFloat *fl)
+{
+    long y = b->y, l, r, next, i;
+
+    for (i = b->fbase; i < L->nfloats; i++)
+        if (!L->floats[i].pending && L->floats[i].y > y) y = L->floats[i].y;
+    while (float_range(L, b, y, fl->h, &l, &r, &next) && fl->w > r - l && next > y)
+        y = next;
+    fl->y = y;
+    fl->x = l;
+    if (fl->side == FL_RIGHT && r - fl->w > l) fl->x = r - fl->w;
+    fl->pending = 0;
+    if (!L->measure) emit_box(L, &fl->f, fl->x + fl->ix, fl->y + fl->iy);
+    if (fl->x + fl->ix + fl->f.w > L->max_right) L->max_right = fl->x + fl->ix + fl->f.w;
+}
+
+/* places the floats that had to wait for the end of a line */
+static void place_pending(struct LCtx *L, struct Box *b)
+{
+    long i;
+    for (i = b->fbase; i < L->nfloats; i++)
+        if (L->floats[i].pending) float_place(L, b, &L->floats[i]);
+}
+
 /* flushes the first n fragments as one line */
 static void flush_n(struct LCtx *L, struct Box *b, long n)
 {
@@ -306,7 +449,6 @@ static void flush_n(struct LCtx *L, struct Box *b, long n)
     long asc = 0, desc = 0, lh, linew, dx = 0, i, shift;
 
     if (n <= 0) return;
-    apply_margin(b);
 
     for (i = 0; i < n; i++) {
         long a = f[i].asc - f[i].voff, d = f[i].desc + f[i].voff;
@@ -320,9 +462,11 @@ static void flush_n(struct LCtx *L, struct Box *b, long n)
     }
     lh = asc + desc + 1;
     linew = f[n - 1].x + f[n - 1].w;
-    if (linew < b->width) {
-        if (b->align == AL_CENTER) dx = (b->width - linew) / 2;
-        else if (b->align == AL_RIGHT) dx = b->width - linew;
+    if (!b->lset) line_setup(L, b, linew, lh);
+    dx = b->lx;
+    if (linew < b->lw) {
+        if (b->align == AL_CENTER) dx += (b->lw - linew) / 2;
+        else if (b->align == AL_RIGHT) dx += b->lw - linew;
     }
 
     if (!L->measure) {
@@ -345,49 +489,16 @@ static void flush_n(struct LCtx *L, struct Box *b, long n)
                     it->s = f[i].s;
                     it->len = f[i].len;
                 }
-            } else if (f[i].img) {     /* FK_BOX with an image */
-                if ((it = emit(L, IT_IMAGE))) {
-                    it->link = f[i].link;
-                    it->x = x;
-                    it->y = b->y + asc + f[i].voff - f[i].asc;
-                    it->w = f[i].w;
-                    it->h = f[i].asc;
-                    it->img = f[i].img;
-                }
-            } else {        /* FK_BOX: frame sitting on the baseline, optional label */
-                long top = b->y + asc + f[i].voff - f[i].asc;
-                if ((it = emit(L, IT_FRAME))) {
-                    it->style = f[i].flags;
-                    it->link = f[i].link;
-                    it->x = x;
-                    it->y = top;
-                    it->w = f[i].w;
-                    it->h = f[i].asc;
-                    it->color = f[i].color;
-                }
-                if (f[i].len) {
-                    long tw = twidth(L, f[i].font, f[i].style, f[i].s, f[i].len);
-                    long th = fheight(L, f[i].font);
-                    if (tw <= f[i].w - 4 && th <= f[i].asc - 2 && (it = emit(L, IT_TEXT))) {
-                        it->font = f[i].font;
-                        it->style = f[i].style & ~HS_UNDERLINED;
-                        it->link = f[i].link;
-                        it->x = x + (f[i].w - tw) / 2;
-                        it->y = top + (f[i].asc - th) / 2;
-                        it->w = tw;
-                        it->h = th;
-                        it->base = (short)fbase(L, f[i].font);
-                        it->color = f[i].color;
-                        it->s = f[i].s;
-                        it->len = f[i].len;
-                        it->flags = IF_NOSEL;
-                    }
-                }
+            } else {        /* FK_BOX: picture or frame sitting on the baseline */
+                emit_box(L, &f[i], x, b->y + asc + f[i].voff - f[i].asc);
             }
         }
     }
     L->soft = 0;
-    if (b->bullet.active) emit_bullet(L, &b->bullet, b->y, asc);
+    if (b->bullet.active) {
+        b->bullet.x += b->lx;                 /* marker follows a left float */
+        emit_bullet(L, &b->bullet, b->y, asc);
+    }
     if (b->x0 + dx + linew > L->max_right) L->max_right = b->x0 + dx + linew;
     b->y += lh;
 
@@ -401,6 +512,8 @@ static void flush_n(struct LCtx *L, struct Box *b, long n)
     b->curx -= shift;
     if (!L->nfr) b->curx = 0;
     b->group = 0;
+    b->lset = 0;
+    place_pending(L, b);
 }
 
 /* ends the current line. If it is empty and empty_h > 0, an empty line
@@ -417,6 +530,8 @@ static void flush_line(struct LCtx *L, struct Box *b, long empty_h)
     }
     b->curx = 0;
     b->group = 0;
+    b->lset = 0;
+    place_pending(L, b);
 }
 
 static struct Frag *new_frag(struct LCtx *L)
@@ -434,14 +549,16 @@ static struct Frag *new_frag(struct LCtx *L)
 }
 
 /* places an unbreakable piece, wrapping the line if needed */
-static struct Frag *place(struct LCtx *L, struct Box *b, const struct Style *st, long w)
+static struct Frag *place(struct LCtx *L, struct Box *b, const struct Style *st, long w, long h)
 {
     int brk = b->space && L->nfr > 0;
-    long x = b->curx + (brk ? b->space : 0);
+    long x;
     struct Frag *f;
 
+    if (!b->lset) line_setup(L, b, b->curx + w, h);
+    x = b->curx + (brk ? b->space : 0);
     b->space = 0;
-    if (!st->nowrap && !st->pre && x + w > b->width) {
+    if (!st->nowrap && !st->pre && x + w > b->lw) {
         if (brk) {
             flush_n(L, b, L->nfr);
             L->soft = 1;
@@ -451,6 +568,7 @@ static struct Frag *place(struct LCtx *L, struct Box *b, const struct Style *st,
             L->soft = 1;
             x = b->curx;
         }
+        if (!b->lset) line_setup(L, b, x + w, h);
     }
     if (brk) b->group = L->nfr;
     if (!(f = new_frag(L))) return 0;
@@ -469,7 +587,7 @@ static void add_piece(struct LCtx *L, struct Box *b, const struct Style *st, con
     long w = twidth(L, font, st->style, s, len);
     struct Frag *f;
 
-    if (!(f = place(L, b, st, w))) return;
+    if (!(f = place(L, b, st, w, fheight(L, font)))) return;
     f->kind = FK_TEXT;
     f->s = s;
     f->len = len;
@@ -513,27 +631,82 @@ static void add_text(struct LCtx *L, struct Box *b, const struct Style *st, cons
     }
 }
 
+static void clamp_box(long *w, long *h)
+{
+    if (*w < 1) *w = 1;
+    if (*h < 1) *h = 1;
+    if (*w > 4000) *w = 4000;
+    if (*h > 4000) *h = 4000;
+}
+
+static void fill_box(struct Frag *f, const struct Style *st, long h, int flags, const char *label, void *img)
+{
+    f->kind = FK_BOX;
+    f->asc = (short)h;
+    f->desc = 0;
+    f->flags = (unsigned char)flags;
+    f->font = (unsigned char)font_of(st);
+    f->style = st->style;
+    f->s = label;
+    f->len = label ? h_strlen(label) : 0;
+    f->img = img;
+}
+
 /* inline box (img placeholder, form element) */
 static void add_box(struct LCtx *L, struct Box *b, const struct Style *st,
                     long w, long h, int flags, const char *label, void *img)
 {
     struct Frag *f;
-    int font = font_of(st);
 
-    if (w < 1) w = 1;
-    if (h < 1) h = 1;
-    if (w > 4000) w = 4000;
-    if (h > 4000) h = 4000;
-    if (!(f = place(L, b, st, w))) return;
-    f->kind = FK_BOX;
-    f->asc = (short)h;
-    f->desc = 0;
-    f->flags = (unsigned char)flags;
-    f->font = (unsigned char)font;
-    f->style = st->style;
-    f->s = label;
-    f->len = label ? h_strlen(label) : 0;
-    f->img = img;
+    clamp_box(&w, &h);
+    if (!(f = place(L, b, st, w, h))) return;
+    fill_box(f, st, h, flags, label, img);
+}
+
+/* floating box: placed now if the line is empty, else after the line */
+static void add_float(struct LCtx *L, struct Box *b, const struct Style *st, struct HNode *n,
+                      int side, long w, long h, const char *label, void *img)
+{
+    struct HFloat *fl;
+    long hs = parse_length(html_attr(n, "hspace"), 0, 0);
+    long vs = parse_length(html_attr(n, "vspace"), 0, 0);
+    long gap = L->em / 2;
+
+    clamp_box(&w, &h);
+    if (hs < 0 || hs > 200) hs = 0;
+    if (vs < 0 || vs > 200) vs = 0;
+    if (L->oom) return;
+    if (L->nfloats == L->maxfloats) {
+        struct HFloat *na = grow(L, L->floats, &L->maxfloats, L->nfloats, sizeof(struct HFloat));
+        if (!na) return;
+        L->floats = na;
+    }
+    fl = &L->floats[L->nfloats++];
+    h_memset(fl, 0, sizeof(*fl));
+    /* measuring: right floats go left too, so the widths simply add up */
+    fl->side = (side == FL_RIGHT && !L->measure) ? FL_RIGHT : FL_LEFT;
+    fl->w = w + 2 * hs + gap;
+    fl->h = h + 2 * vs;
+    fl->ix = hs + (fl->side == FL_RIGHT ? gap : 0);
+    fl->iy = vs;
+    fl->f.w = w;
+    fl->f.link = st->link;
+    fl->f.color = st->color;
+    fill_box(&fl->f, st, h, 0, label, img);
+    fl->pending = 1;                  /* float_place() must not see it yet */
+    if (!L->nfr) {
+        apply_margin(b);
+        float_place(L, b, fl);
+        b->lset = 0;
+    }
+}
+
+static int float_side(struct HNode *n)
+{
+    const char *a = html_attr(n, "align");
+    if (a && !h_stricmp(a, "left")) return FL_LEFT;
+    if (a && !h_stricmp(a, "right")) return FL_RIGHT;
+    return 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -669,20 +842,23 @@ static void hrule(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
 {
     struct HItem *it;
     int pct, noshade = html_attr(n, "noshade") != 0;
-    long w = parse_length(html_attr(n, "width"), b->width, &pct);
-    long h = parse_length(html_attr(n, "size"), 0, 0);
-    long x = b->x0, lh = fheight(L, font_of(st));
+    long w, h = parse_length(html_attr(n, "size"), 0, 0);
+    long x, bw, next, lh = fheight(L, font_of(st));
     int al = parse_align(html_attr(n, "align"), AL_CENTER);
     unsigned long c = html_parse_color(html_attr(n, "color"));
 
     flush_line(L, b, 0);
     add_margin(b, lh / 2);
     apply_margin(b);
-    if (w <= 0 || w > b->width) w = b->width;
     if (h <= 0) h = 2;
     if (h > 200) h = 200;
-    if (al == AL_CENTER) x += (b->width - w) / 2;
-    else if (al == AL_RIGHT) x += b->width - w;
+    float_range(L, b, b->y, h, &x, &bw, &next);      /* runs between the floats */
+    bw -= x;
+    if (bw < 1) bw = 1;
+    w = parse_length(html_attr(n, "width"), bw, &pct);
+    if (w <= 0 || w > bw) w = bw;
+    if (al == AL_CENTER) x += (bw - w) / 2;
+    else if (al == AL_RIGHT) x += bw - w;
     if ((it = emit(L, IT_HRULE))) {
         it->x = x;
         it->y = b->y;
@@ -701,21 +877,23 @@ static void image(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
     const char *alt = html_attr(n, "alt");
     long w = parse_length(html_attr(n, "width"), b->width, 0);
     long h = parse_length(html_attr(n, "height"), 0, 0);
-    int font = font_of(st);
+    int font = font_of(st), side = float_side(n);
     const char *label;
 
     if (n->img && n->iw > 0 && n->ih > 0) {             /* loaded picture */
         if (w <= 0 && h <= 0) { w = n->iw; h = n->ih; }
         else if (w <= 0) w = n->iw * h / n->ih;
         else if (h <= 0) h = n->ih * w / n->iw;
-        add_box(L, b, st, w, h, 0, 0, n->img);
+        if (side) add_float(L, b, st, n, side, w, h, 0, n->img);
+        else add_box(L, b, st, w, h, 0, 0, n->img);
         return;
     }
     if (alt && !*alt && w <= 0 && h <= 0) return;      /* alt="" -> decorative, skip */
     label = (alt && *alt) ? alt : 0;
     if (w <= 0) w = label ? twidth(L, font, st->style, label, h_strlen(label)) + 8 : 16;
     if (h <= 0) h = label ? fheight(L, font) + 4 : 16;
-    add_box(L, b, st, w, h, 0, label, 0);
+    if (side) add_float(L, b, st, n, side, w, h, label, 0);
+    else add_box(L, b, st, w, h, 0, label, 0);
 }
 
 static void input(struct LCtx *L, struct Box *b, struct HNode *n, const struct Style *st)
@@ -763,6 +941,7 @@ static long cell_content(struct LCtx *L, struct HNode *n, const struct Style *st
                          long x0, long width, long y, int align)
 {
     struct Box cb;
+    long fb;
 
     h_memset(&cb, 0, sizeof(cb));
     cb.x0 = x0;
@@ -770,9 +949,12 @@ static long cell_content(struct LCtx *L, struct HNode *n, const struct Style *st
     cb.y = y;
     cb.at_top = 1;
     cb.align = align;
+    cb.fbase = L->nfloats;                 /* a cell is a float context of its own */
     layout_children(L, &cb, n, st);
     flush_line(L, &cb, 0);
     if (cb.bullet.active) flush_line(L, &cb, fheight(L, cb.bullet.font));
+    if ((fb = float_bottom(L, &cb, FL_LEFT | FL_RIGHT)) > cb.y) cb.y = fb;
+    L->nfloats = cb.fbase;
     return cb.y - y;
 }
 
@@ -864,6 +1046,7 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
 
     add_margin(b, 0);
     apply_margin(b);
+    if ((y0 = float_bottom(L, b, FL_LEFT | FL_RIGHT)) > b->y) b->y = y0;   /* tables go below floats */
     y0 = b->y;
 
     if (!rows) {                               /* empty table: just the caption */
@@ -1116,6 +1299,18 @@ static void layout_node(struct LCtx *L, struct Box *b, struct HNode *n, const st
     case T_LINK: case T_META:
         return;
     case T_BR:
+        if ((a = html_attr(n, "clear")) && h_stricmp(a, "none")) {
+            int sides = !h_stricmp(a, "left") ? FL_LEFT : !h_stricmp(a, "right") ? FL_RIGHT : FL_LEFT | FL_RIGHT;
+            int empty = !L->nfr;
+            long fb;
+            flush_line(L, b, 0);
+            if ((fb = float_bottom(L, b, sides)) > b->y) {
+                apply_margin(b);
+                if (fb > b->y) b->y = fb;
+                return;
+            }
+            if (!empty) return;
+        }
         flush_line(L, b, lh);
         return;
     case T_IMG:
@@ -1210,6 +1405,7 @@ struct HLayout *html_layout(struct HDoc *doc, struct HEnv *env, long width)
     layout_children(&L, &root, doc->root, &st);
     flush_line(&L, &root, 0);
     if (root.bullet.active) flush_line(&L, &root, fheight(&L, root.bullet.font));
+    if (float_bottom(&L, &root, FL_LEFT | FL_RIGHT) > root.y) root.y = float_bottom(&L, &root, FL_LEFT | FL_RIGHT);
 
     if (L.oom) {
         hsys_pool_delete(pool);
