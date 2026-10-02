@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # mkdist.py - builds the Aminet archive html_gadget.lha from the built tree
 #
-# Copyright (c) 2026 Andre Gewert <agewert@ubergeek.de>, MIT License
+# Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 #
 # Creates dist/html_gadget/ with icons (classic 4 colour icons, plus complete
 # GlowIcons and NewIcons sets in Icons/, see mkicons.py), the Installer

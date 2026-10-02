@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # mkicons.py - Workbench icons of the html.gadget distribution
 #
-# Copyright (c) 2026 Andre Gewert <agewert@ubergeek.de>, MIT License
+# Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 #
 # Three icon styles, all drawn here (no picture files needed):
 #   Classic    4 colour planar image (Workbench 2.x/3.x palette)
