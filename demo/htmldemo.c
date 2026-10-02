@@ -44,7 +44,7 @@
 
 #include <string.h>
 
-static const char version[] = "$VER: HTMLDemo 1.0 (30.09.2026)";
+static const char version[] = "$VER: HTMLDemo 1.1 (02.10.2026)";
 
 /* initialised explicitly: as COMMON symbols they would pull in the
  * auto-open stubs of libstubs.a, which try to open "window.library" */
@@ -319,7 +319,7 @@ static void page(int dir)
 
 int main(void)
 {
-    struct RDArgs *rda;
+    struct RDArgs *rda = NULL;          /* stays NULL from the Workbench */
     LONG args[4] = { 0, 0, 0, 0 };     /* FILE, TTF, FONTSET, SIZE */
     BOOL ttf;
     ULONG sigmask, result;
@@ -339,7 +339,6 @@ int main(void)
         opt.ttf = args[1] != 0;
         if (args[2]) strncpy(opt.fontset, (char *)args[2], sizeof(opt.fontset) - 1);
         if (args[3]) opt.size = *(LONG *)args[3];
-        if (IconBase) CloseLibrary(IconBase);
     }
     ttf = opt.ttf;
 
@@ -547,7 +546,8 @@ out:
     if (ButtonBase) CloseLibrary(ButtonBase);
     if (LayoutBase) CloseLibrary(LayoutBase);
     if (WindowBase) CloseLibrary(WindowBase);
-    FreeArgs(rda);
+    if (IconBase) CloseLibrary(IconBase);     /* opened by wb_options() */
+    if (rda) FreeArgs(rda);
     (void)version;
     return rc;
 }

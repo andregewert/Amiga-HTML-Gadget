@@ -81,6 +81,7 @@ History
  - htmlttf.gadget also as faster build for 68020-68060
  - icons also as GlowIcons and NewIcons (drawer Icons)
  - new demo pages: tables, text flow
+ - HTMLDemo: no crash when started from the Workbench
 1.0 (30.09.2026)
  - first release
 
@@ -113,5 +114,6 @@ Versionsgeschichte
  - htmlttf.gadget zusätzlich als schnellerer Build für 68020-68060
  - Icons zusätzlich als GlowIcons und NewIcons (Schublade Icons)
  - neue Demo-Seiten: Tabellen, Textumfluss
+ - HTMLDemo: kein Absturz mehr beim Start von der Workbench
 1.0 (30.09.2026)
  - erste Veröffentlichung
