@@ -22,7 +22,8 @@ Features
  - links with visited/active colours, anchors, "#anchor" links handled
    by the gadget itself, link clicks reported as GADGETUP
  - pictures in every format a datatype exists for (GIF transparency, PNG
-   alpha in htmlttf.gadget), scaled with width/height
+   alpha in htmlttf.gadget), scaled with width/height; with align=left/
+   right the text flows around them (hspace, vspace, br clear)
  - background colours and tiled background pictures for the page, tables
    and cells
  - text selection with the mouse (drag, double click for a word) and
@@ -67,7 +68,21 @@ programs, run the Installer script or copy Classes/Gadgets/#? to
 SYS:Classes/Gadgets/.
 
 Not supported: CSS, JavaScript, frames, forms (drawn as boxes only),
-text flowing around tables and pictures, network access.
+text flowing around tables, network access.
+
+History
+-------
+1.1 (01.10.2026)
+ - tables: cells spanning several rows (rowspan)
+ - pictures with align=left/right, text flows around them
+ - html.gadget: links are underlined with every font and without gaps
+   between the words
+ - list bullets are centred vertically in the line
+ - htmlttf.gadget also as faster build for 68020-68060
+ - icons also as GlowIcons and NewIcons (drawer Icons)
+ - new demo pages: tables, text flow
+1.0 (30.09.2026)
+ - first release
 
 License
 -------
@@ -86,3 +101,17 @@ die Zwischenablage kopieren. html.gadget verwendet die Bitmap-Fonts des
 Systems in ihren echten Größen, htmlttf.gadget geglättete
 TrueType-Schriften über FreeType. Ausführliche deutsche Dokumentation:
 Docs/LiesMich.txt. Installation mit dem beiliegenden Installer-Skript.
+
+Versionsgeschichte
+------------------
+1.1 (01.10.2026)
+ - Tabellen: Zellen über mehrere Zeilen (rowspan)
+ - Bilder mit align=left/right, der Text umfließt sie
+ - html.gadget: Links werden mit jedem Font und ohne Lücken zwischen den
+   Wörtern unterstrichen
+ - Aufzählungspunkte stehen vertikal mittig in der Zeile
+ - htmlttf.gadget zusätzlich als schnellerer Build für 68020-68060
+ - Icons zusätzlich als GlowIcons und NewIcons (Schublade Icons)
+ - neue Demo-Seiten: Tabellen, Textumfluss
+1.0 (30.09.2026)
+ - erste Veröffentlichung

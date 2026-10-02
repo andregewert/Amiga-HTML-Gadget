@@ -58,6 +58,10 @@ Aufbau, Features und Build sind in `README.de.md` beschrieben.
   `Makefile` stehen. `tools/mkdist.py` übernimmt `demo/*.html` automatisch.
 - Neue Features in `README.md` **und** `README.de.md` dokumentieren, Tags/Attribute
   ggf. auch in `doc/*.doc`.
+- Für Anwender sichtbare Änderungen knapp in die Versionsgeschichte von
+  `package/html_gadget.readme` eintragen, englisch (`History`) **und** deutsch
+  (`Versionsgeschichte`), unter der Version aus `src/html_private.h`. Zeilen höchstens
+  78 Zeichen. Kein `Replaces:`, solange Archivname und Aminet-Verzeichnis gleich bleiben.
 
 ## Icons
 
