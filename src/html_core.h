@@ -110,7 +110,7 @@ unsigned long html_fonts_used(struct HDoc *doc);
 
 /* ---- layout ---------------------------------------------------------- */
 
-enum { IT_TEXT, IT_RECT, IT_HRULE, IT_FRAME, IT_BULLET, IT_IMAGE };
+enum { IT_TEXT, IT_RECT, IT_HRULE, IT_FRAME, IT_BULLET, IT_IMAGE, IT_CHECK };
 
 /* bullet kinds (IT_BULLET, kept in 'style') */
 enum { BUL_DISC, BUL_CIRCLE, BUL_SQUARE };
@@ -118,6 +118,10 @@ enum { BUL_DISC, BUL_CIRCLE, BUL_SQUARE };
 /* hrule / frame flags (kept in 'style') */
 #define HR_NOSHADE   1
 #define FR_RAISED    2
+
+/* IT_CHECK: <input type=checkbox/radio>, read only; the square is x/y/w/h */
+#define CK_RADIO     1
+#define CK_CHECKED   2
 
 struct HItem {
     unsigned char type;
@@ -183,6 +187,14 @@ int  html_sel_empty(const struct HSel *s);
 int  html_sel_part(const struct HSel *s, struct HLayout *lay, long i, long *c0, long *c1);
 /* x offset of character ch inside item */
 long html_char_x(struct HEnv *env, struct HItem *it, long ch);
+
+/* Paints an IT_CHECK item (html_check.c). span() gets runs of pixels of
+ * one colour (0xRRGGBB) and coverage (1..255) in document coordinates,
+ * x0..x1 inclusive; the renderer blends or, without blending, draws the
+ * pixels with a coverage of at least 128. Several layers are painted in
+ * order, later ones on top.                                            */
+typedef void (*html_span_fn)(void *ctx, long x0, long x1, long y, unsigned long rgb, unsigned alpha);
+void html_check_paint(const struct HItem *it, html_span_fn span, void *ctx);
 /* right end of the highlight of item i: bridges the gap to the next word */
 long html_sel_right(const struct HSel *s, struct HLayout *lay, struct HEnv *env, long i, long c1);
 void html_sel_all(struct HSel *s, struct HLayout *lay);

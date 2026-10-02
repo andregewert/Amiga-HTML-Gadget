@@ -79,7 +79,8 @@ htmlttf.gadget/HTMLTTF_Size
     <nobr> <font size color face> <a href name> <ul> <ol> <li> <dl> <dt>
     <dd> <table> <caption> <tr> <td> <th> (colspan, rowspan, width, align,
     valign, bgcolor, border, cellpadding, cellspacing, nowrap, background)
-    <img> <input> (as boxes). Entities of HTML 4 Latin-1 plus numeric entities; UTF-8
+    <img> <input> (as boxes; checkboxes and radio buttons with their state,
+    read only). Entities of HTML 4 Latin-1 plus numeric entities; UTF-8
     input is detected and converted to Latin-1. Not supported: CSS,
     JavaScript, frames, floating tables and images.
 

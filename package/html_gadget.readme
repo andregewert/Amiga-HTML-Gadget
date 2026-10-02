@@ -72,7 +72,7 @@ text flowing around tables, network access.
 
 History
 -------
-1.1 (01.10.2026)
+1.1 (02.10.2026)
  - tables: cells spanning several rows (rowspan)
  - pictures with align=left/right, text flows around them
  - html.gadget: links are underlined with every font and without gaps
@@ -82,6 +82,8 @@ History
  - icons also as GlowIcons and NewIcons (drawer Icons)
  - new demo pages: tables, text flow
  - HTMLDemo: no crash when started from the Workbench
+ - checkboxes and radio buttons show their state, sized to the font
+   (anti-aliased in htmlttf.gadget), e.g. for Markdown task lists
 1.0 (30.09.2026)
  - first release
 
@@ -105,7 +107,7 @@ Docs/LiesMich.txt. Installation mit dem beiliegenden Installer-Skript.
 
 Versionsgeschichte
 ------------------
-1.1 (01.10.2026)
+1.1 (02.10.2026)
  - Tabellen: Zellen über mehrere Zeilen (rowspan)
  - Bilder mit align=left/right, der Text umfließt sie
  - html.gadget: Links werden mit jedem Font und ohne Lücken zwischen den
@@ -115,5 +117,8 @@ Versionsgeschichte
  - Icons zusätzlich als GlowIcons und NewIcons (Schublade Icons)
  - neue Demo-Seiten: Tabellen, Textumfluss
  - HTMLDemo: kein Absturz mehr beim Start von der Workbench
+ - Checkboxen und Radio-Buttons zeigen ihren Zustand, passend zur
+   Schriftgröße (in htmlttf.gadget geglättet), z. B. für
+   Markdown-Aufgabenlisten
 1.0 (30.09.2026)
  - erste Veröffentlichung

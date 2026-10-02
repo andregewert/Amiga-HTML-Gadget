@@ -33,7 +33,7 @@
 | Pictures | `img` (and `input type=image`) in every format a **datatype** exists for; GIF transparency, PNG alpha (htmlttf.gadget); scaled with `width`/`height`; `alt` text for missing pictures; `align=left/right` floats the picture and text flows around it (`hspace`, `vspace`, `br clear=left/right/all`) |
 | Selection | drag with the mouse (auto-scrolls at the edges), double click selects a word; copy to the clipboard as IFF FTXT |
 | Character set | Latin-1; UTF-8 documents are detected and converted. All HTML 4 Latin-1 entities, `&#nnn;`, `&#xhh;` |
-| Forms | `input` is drawn as a placeholder box (not usable) |
+| Forms | `input` is drawn as a placeholder box (not usable); checkboxes and radio buttons show their state (`checked`) with anti-aliased graphics in htmlttf.gadget, sized to the font, read only (e.g. Markdown task lists) |
 
 Not supported: CSS, JavaScript, network access, frames, text flowing around
 tables (`align=left/right` only positions them), usable forms.

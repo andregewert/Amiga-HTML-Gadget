@@ -75,7 +75,7 @@ int main(int argc, char **argv)
     if (!quiet)
     for (i = 0; i < lay->nitems; i++) {
         struct HItem *it = &lay->items[i];
-        static const char *tn[] = { "TEXT", "RECT", "HR", "FRAME", "BULLET", "IMAGE" };
+        static const char *tn[] = { "TEXT", "RECT", "HR", "FRAME", "BULLET", "IMAGE", "CHECK" };
         printf("%-6s x=%4ld y=%4ld w=%4ld h=%3ld b=%2d f=%2d st=%02x l=%2d c=%08lx", tn[it->type],
                it->x, it->y, it->w, it->h, it->base, it->font, it->style, it->link, it->color);
         if (it->type == IT_TEXT) printf(" '%.*s'", (int)it->len, it->s);

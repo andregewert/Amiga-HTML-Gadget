@@ -72,7 +72,8 @@ html.gadget/HTML_Visible
     <dd> <table> <caption> <tr> <td> <th> (colspan, rowspan, width, align, valign,
     bgcolor, border, cellpadding, cellspacing, nowrap, background) <img>
     (align=left/right floats with text flowing around it, hspace, vspace,
-    <br clear>) <input> (as boxes). Entities of HTML 4 Latin-1 plus numeric
+    <br clear>) <input> (as boxes; checkboxes and radio buttons with their
+    state, read only). Entities of HTML 4 Latin-1 plus numeric
     entities; UTF-8 input is detected and converted to Latin-1. Not
     supported: CSS, JavaScript, frames, rowspan, floating tables.
 

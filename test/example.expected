@@ -1,5 +1,5 @@
 title: html.gadget - Testseite  utf8=0 links=9 fonts=23f
-size 400 x 1004, 315 items, 4 anchors
+size 400 x 1049, 341 items, 4 anchors
 TEXT   x= 155 y=   8 w=  89 h= 17 b=12 f= 5 st=02 l=-1 c=00000000 'html.gadget'
 TEXT   x=  74 y=  35 w=  28 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'Eine'
 TEXT   x= 109 y=  35 w= 105 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'ReAction-Klasse'
@@ -302,19 +302,45 @@ TEXT   x= 180 y= 935 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'die'
 TEXT   x= 208 y= 935 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Seite'
 TEXT   x= 250 y= 935 w=  77 h=  9 b= 6 f= 2 st=01 l= 7 c=02000000 'Textumfluss'
 TEXT   x= 327 y= 935 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '.'
-TEXT   x= 115 y= 952 w=  63 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zentriert'
-TEXT   x= 185 y= 952 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mit'
-TEXT   x= 213 y= 952 w=  64 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 '<center>'
-TEXT   x= 277 y= 952 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '.'
-FRAME  x= 176 y= 961 w=  47 h= 12 b= 0 f= 0 st=02 l=-1 c=00000000
-TEXT   x= 182 y= 963 w=  35 h=  8 b= 6 f= 2 st=00 l=-1 c=00000000 'Knopf'
-HR     x= 104 y= 982 w= 192 h=  1 b= 0 f= 0 st=01 l=-1 c=00000000
-TEXT   x=   8 y= 987 w=  56 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'Erstellt'
-TEXT   x=  71 y= 987 w=  21 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'mit'
-TEXT   x=  99 y= 987 w=  77 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'html.gadget'
-TEXT   x= 183 y= 987 w=   7 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 '-'
-TEXT   x= 197 y= 987 w=  28 h=  9 b= 6 f= 2 st=05 l= 8 c=02000000 'nach'
-TEXT   x= 232 y= 987 w=  28 h=  9 b= 6 f= 2 st=05 l= 8 c=02000000 'oben'
+TEXT   x=   8 y= 952 w=  70 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Checkboxen'
+TEXT   x=  85 y= 952 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'und'
+TEXT   x= 113 y= 952 w=  91 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Radio-Buttons'
+TEXT   x= 211 y= 952 w=  42 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'zeigen'
+TEXT   x= 260 y= 952 w=  35 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'ihren'
+TEXT   x= 302 y= 952 w=  56 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zustand,'
+TEXT   x=   8 y= 961 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'passend'
+TEXT   x=  64 y= 961 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'zur'
+TEXT   x=  92 y= 961 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Schrift'
+TEXT   x= 148 y= 961 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '(nur'
+TEXT   x= 183 y= 961 w=  49 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'lesend,'
+TEXT   x= 239 y= 961 w=  28 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'etwa'
+TEXT   x= 274 y= 961 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'für'
+TEXT   x=   8 y= 970 w=  98 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Aufgabenlisten'
+TEXT   x= 113 y= 970 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'aus'
+TEXT   x= 141 y= 970 w=  70 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Markdown):'
+CHECK  x=   8 y= 979 w=   8 h=  8 b= 0 f= 0 st=02 l=-1 c=00000000
+TEXT   x=  19 y= 979 w=  56 h= 10 b= 7 f= 2 st=00 l=-1 c=00000000 'erledigt'
+CHECK  x=  82 y= 979 w=   8 h=  8 b= 0 f= 0 st=00 l=-1 c=00000000
+TEXT   x=  93 y= 979 w=  35 h= 10 b= 7 f= 2 st=00 l=-1 c=00000000 'offen'
+TEXT   x= 135 y= 979 w=   7 h= 10 b= 7 f= 2 st=00 l=-1 c=00000000 '-'
+TEXT   x= 149 y= 979 w=  56 h= 10 b= 7 f= 2 st=00 l=-1 c=00000000 'Auswahl:'
+CHECK  x= 212 y= 979 w=   8 h=  8 b= 0 f= 0 st=03 l=-1 c=00000000
+TEXT   x= 227 y= 979 w=  14 h= 10 b= 7 f= 2 st=00 l=-1 c=00000000 'ja'
+CHECK  x= 248 y= 979 w=   8 h=  8 b= 0 f= 0 st=01 l=-1 c=00000000
+TEXT   x= 263 y= 979 w=  28 h= 10 b= 7 f= 2 st=00 l=-1 c=00000000 'nein'
+TEXT   x= 115 y= 997 w=  63 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'Zentriert'
+TEXT   x= 185 y= 997 w=  21 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 'mit'
+TEXT   x= 213 y= 997 w=  64 h=  9 b= 6 f= 9 st=00 l=-1 c=00000000 '<center>'
+TEXT   x= 277 y= 997 w=   7 h=  9 b= 6 f= 2 st=00 l=-1 c=00000000 '.'
+FRAME  x= 176 y=1006 w=  47 h= 12 b= 0 f= 0 st=02 l=-1 c=00000000
+TEXT   x= 182 y=1008 w=  35 h=  8 b= 6 f= 2 st=00 l=-1 c=00000000 'Knopf'
+HR     x= 104 y=1027 w= 192 h=  1 b= 0 f= 0 st=01 l=-1 c=00000000
+TEXT   x=   8 y=1032 w=  56 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'Erstellt'
+TEXT   x=  71 y=1032 w=  21 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'mit'
+TEXT   x=  99 y=1032 w=  77 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 'html.gadget'
+TEXT   x= 183 y=1032 w=   7 h=  9 b= 6 f= 2 st=04 l=-1 c=00000000 '-'
+TEXT   x= 197 y=1032 w=  28 h=  9 b= 6 f= 2 st=05 l= 8 c=02000000 'nach'
+TEXT   x= 232 y=1032 w=  28 h=  9 b= 6 f= 2 st=05 l= 8 c=02000000 'oben'
 anchor top @8
 anchor listen @148
 anchor tabellen @452

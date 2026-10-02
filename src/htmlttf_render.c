@@ -205,6 +205,24 @@ static unsigned long mix(unsigned long dst, unsigned long src, unsigned long a)
     return 0xFF000000UL | (r << 16) | (g << 8) | b;
 }
 
+/* IT_CHECK: a run of pixels blended with its coverage */
+static void s_span(void *ctx, long x0, long x1, long y, unsigned long rgb, unsigned alpha)
+{
+    struct TStrip *s = ctx;
+    tr_u32 *p;
+    long x;
+
+    y -= s->dy;
+    x0 -= s->dx;
+    x1 -= s->dx;
+    if (y < 0 || y >= s->h) return;
+    if (x0 < 0) x0 = 0;
+    if (x1 >= s->w) x1 = s->w - 1;
+    rgb |= 0xFF000000UL;
+    for (p = s->buf + y * s->w + x0, x = x0; x <= x1; x++, p++)
+        *p = alpha >= 255 ? rgb : mix(*p, rgb, alpha);
+}
+
 static void s_glyph(struct TStrip *s, struct TGlyph *g, long x, long y, unsigned long rgb)
 {
     long gx, gy, x0 = x - s->dx, y0 = y - s->dy;
@@ -367,6 +385,9 @@ void tr_render_strip(struct TRender *r, struct HLayout *lay, int syscolors, stru
         case IT_IMAGE:
             if (it->img) s_image(s, it->img, it->x, it->y, it->w, it->h);
             else s_bevel(s, it->x, it->y, it->w, it->h, COL_DARK, COL_LIGHT);
+            break;
+        case IT_CHECK:
+            html_check_paint(it, s_span, s);
             break;
         case IT_BULLET: {
             long x = it->x, y = it->y, sz = it->w;

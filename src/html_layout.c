@@ -20,6 +20,11 @@
 
 enum { FK_TEXT, FK_BOX };
 
+/* FK_BOX flags besides FR_RAISED: a checkbox or radio button (IT_CHECK) */
+#define FR_CHECK     0x10
+#define FR_CKRADIO   0x20
+#define FR_CKCHECKED 0x40
+
 struct Frag {
     long          x, w;
     const char   *s;
@@ -323,6 +328,18 @@ static void emit_bullet(struct LCtx *L, struct Bullet *bu, long y, long base)
 static void emit_box(struct LCtx *L, const struct Frag *f, long x, long top)
 {
     struct HItem *it;
+
+    if (f->flags & FR_CHECK) {          /* the square; the rest of f->w is the gap */
+        if ((it = emit(L, IT_CHECK))) {
+            it->style = (f->flags & FR_CKRADIO ? CK_RADIO : 0) | (f->flags & FR_CKCHECKED ? CK_CHECKED : 0);
+            it->link = f->link;
+            it->x = x;
+            it->y = top;
+            it->w = it->h = f->asc;
+            it->color = f->color;
+        }
+        return;
+    }
 
     if (f->img) {
         if ((it = emit(L, IT_IMAGE))) {
@@ -653,15 +670,16 @@ static void fill_box(struct Frag *f, const struct Style *st, long h, int flags, 
     f->img = img;
 }
 
-/* inline box (img placeholder, form element) */
-static void add_box(struct LCtx *L, struct Box *b, const struct Style *st,
-                    long w, long h, int flags, const char *label, void *img)
+/* inline box (img placeholder, form element); returns the fragment or 0 */
+static struct Frag *add_box(struct LCtx *L, struct Box *b, const struct Style *st,
+                            long w, long h, int flags, const char *label, void *img)
 {
     struct Frag *f;
 
     clamp_box(&w, &h);
-    if (!(f = place(L, b, st, w, h))) return;
+    if (!(f = place(L, b, st, w, h))) return 0;
     fill_box(f, st, h, flags, label, img);
+    return f;
 }
 
 /* floating box: placed now if the line is empty, else after the line */
@@ -909,7 +927,19 @@ static void input(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
         if (!val || !*val) val = !h_stricmp(type, "reset") ? "Reset" : "Submit";
         add_box(L, b, st, twidth(L, font, 0, val, h_strlen(val)) + 12, h, FR_RAISED, val, 0);
     } else if (!h_stricmp(type, "checkbox") || !h_stricmp(type, "radio")) {
-        add_box(L, b, st, fbase(L, font) + 2, fbase(L, font) + 2, 0, 0, 0);
+        /* as high as the letters and a little below the base line like in
+         * browsers; a small gap if text follows directly (task lists in
+         * Markdown have no space between the box and the text)          */
+        long size = fbase(L, font) + 2, gap = (size + 2) / 3;
+        struct Frag *f;
+        struct HNode *nx = n->next;
+        if (nx && nx->tag == T_TEXT && nx->len > 0 &&
+            (nx->text[0] == ' ' || nx->text[0] == '\t' || nx->text[0] == '\n' || nx->text[0] == '\r'))
+            gap = 0;
+        f = add_box(L, b, st, size + gap, size,
+                    FR_CHECK | (!h_stricmp(type, "radio") ? FR_CKRADIO : 0) |
+                    (html_attr(n, "checked") ? FR_CKCHECKED : 0), 0, 0);
+        if (f) f->voff = (short)(f->voff + size / 6);
     } else if (!h_stricmp(type, "image")) {
         image(L, b, n, st);
     } else {

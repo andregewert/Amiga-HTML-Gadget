@@ -591,6 +591,28 @@ static BOOL image_usable(struct HImage *im, struct GadgetInfo *gi)
     return im && im->bm && im->scr == gi->gi_Screen;
 }
 
+/* IT_CHECK without blending: the pixels covered at least half */
+struct CheckCtx {
+    struct HTMLData   *d;
+    struct GadgetInfo *gi;
+    struct RastPort   *rp;
+    LONG               dx, dy;
+    ULONG              rgb;
+    LONG               pen;
+};
+
+static void check_span(void *ctx, long x0, long x1, long y, unsigned long rgb, unsigned alpha)
+{
+    struct CheckCtx *c = ctx;
+    if (alpha < 128) return;
+    if (rgb != c->rgb || c->pen < 0) {
+        c->rgb = rgb;
+        c->pen = get_pen(c->d, c->gi, rgb, TEXTPEN);
+        SetAPen(c->rp, c->pen);
+    }
+    rect(c->rp, x0 + c->dx, y + c->dy, x1 + c->dx, y + c->dy);
+}
+
 /* draws the document into rp; (ox,oy) is where the visible area starts */
 static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastPort *rp, LONG ox, LONG oy)
 {
@@ -695,6 +717,18 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
             } else {
                 bevel(rp, x, y, it->w, it->h, dark, light);
             }
+            break;
+        }
+        case IT_CHECK: {
+            struct CheckCtx c;
+            c.d = d;
+            c.gi = gi;
+            c.rp = rp;
+            c.dx = dx;
+            c.dy = dy;
+            c.rgb = 0;
+            c.pen = -1;
+            html_check_paint(it, check_span, &c);
             break;
         }
         case IT_BULLET: {
