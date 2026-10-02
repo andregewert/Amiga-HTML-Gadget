@@ -46,7 +46,9 @@ or maps it to pens on palette screens.
 Contents
 --------
  Install              Installer script (English/German)
- Classes/Gadgets/     html.gadget, htmlttf.gadget
+ Classes/Gadgets/     html.gadget, htmlttf.gadget (68000)
+ Classes/Gadgets/68020/
+                      htmlttf.gadget for 68020-68060 (Install picks it)
  Demo/                HTMLDemo (a small browser) with example pages;
                       "HTMLDemo TTF" uses htmlttf.gadget
  Developer/           includes (gadgets, proto, inline, clib), FD, SFD,

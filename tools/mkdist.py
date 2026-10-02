@@ -49,6 +49,7 @@ def main():
 
     for g in ('html.gadget', 'htmlttf.gadget'):
         copy(b('bin', g), os.path.join(PKG, 'Classes', 'Gadgets', g))
+    copy(b('bin', '68020', 'htmlttf.gadget'), os.path.join(PKG, 'Classes', 'Gadgets', '68020', 'htmlttf.gadget'))
 
     demo = os.path.join(PKG, 'Demo')
     copy(b('bin', 'HTMLDemo'), os.path.join(demo, 'HTMLDemo'))

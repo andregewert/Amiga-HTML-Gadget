@@ -12,6 +12,7 @@
 #include <exec/resident.h>
 #include <exec/libraries.h>
 #include <exec/semaphores.h>
+#include <exec/execbase.h>
 #include <intuition/classes.h>
 #include <dos/dos.h>
 
@@ -48,7 +49,13 @@ static BPTR SegList;
 #define XSTR(x) STR(x)
 
 static const char LibName[] = LIBNAME;
-static const char LibId[] = "$VER: " LIBNAME " " XSTR(LIBVERSION) "." XSTR(LIBREVISION) " (" LIBDATE ")\r\n";
+/* the 68020 build (-m68020-60) says so in its version string */
+#ifdef __mc68020__
+#define LIBCPU " 68020+"
+#else
+#define LIBCPU ""
+#endif
+static const char LibId[] = "$VER: " LIBNAME " " XSTR(LIBVERSION) "." XSTR(LIBREVISION) " (" LIBDATE ")" LIBCPU "\r\n";
 
 struct HTMLBase {
     struct ClassLibrary cl;
@@ -125,6 +132,9 @@ static struct Library *LibInit(struct Library *base __asm("d0"), BPTR seglist __
     InitSemaphore(&DiskfontLock);
 
     if (sysbase->LibNode.lib_Version < 39 ||
+#ifdef __mc68020__
+        !(sysbase->AttnFlags & AFF_68020) ||  /* 68020 build on a 68000/010 */
+#endif
         !(DOSBase = (struct DosLibrary *)OpenLibrary("dos.library", 39)) ||
         !(IntuitionBase = (struct IntuitionBase *)OpenLibrary("intuition.library", 39)) ||
         !(GfxBase = (struct GfxBase *)OpenLibrary("graphics.library", 39)) ||

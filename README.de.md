@@ -14,8 +14,15 @@ HTML-4-Dokumente darstellt.
 
 ```
 Copy bin/html.gadget SYS:Classes/Gadgets/
-Copy bin/htmlttf.gadget SYS:Classes/Gadgets/      ; optional, siehe unten
+Copy bin/htmlttf.gadget SYS:Classes/Gadgets/          ; optional, siehe unten
+Copy bin/68020/htmlttf.gadget SYS:Classes/Gadgets/    ; statt dessen ab 68020
 ```
+
+`htmlttf.gadget` gibt es zusätzlich als Build für 68020 bis 68060 (im Archiv
+`Classes/Gadgets/68020/`, `Install` wählt ihn automatisch). Er nutzt die 32-Bit-Multiplikation
+und -Division der größeren Prozessoren, verzichtet aber auf die 64-Bit-Varianten, die der
+68060 nur emuliert (`-m68020-60 -mtune=68060`). Der Versionsstring endet auf `68020+`.
+`html.gadget` verbringt seine Zeit in der graphics.library und gibt es nur für 68000.
 
 Zum Ausprobieren: `bin/HTMLDemo` mit den Beispielseiten und -bildern aus `bin/` in ein
 Verzeichnis kopieren und `HTMLDemo` starten (ohne Installation sucht die Demo

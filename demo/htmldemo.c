@@ -15,6 +15,7 @@
  */
 #include <exec/types.h>
 #include <exec/memory.h>
+#include <exec/execbase.h>
 #include <dos/dos.h>
 #include <intuition/intuition.h>
 #include <intuition/icclass.h>
@@ -351,6 +352,9 @@ int main(void)
     if (ttf) {
         HTMLBase = OpenLibrary((STRPTR)"gadgets/htmlttf.gadget", 1);
         if (!HTMLBase) HTMLBase = OpenLibrary((STRPTR)"PROGDIR:htmlttf.gadget", 1);
+        /* from the archive: the 68020 build where possible */
+        if (!HTMLBase && (SysBase->AttnFlags & AFF_68020))
+            HTMLBase = OpenLibrary((STRPTR)"PROGDIR:/Classes/Gadgets/68020/htmlttf.gadget", 1);
         if (!HTMLBase) HTMLBase = OpenLibrary((STRPTR)"PROGDIR:/Classes/Gadgets/htmlttf.gadget", 1);
     } else {
         HTMLBase = OpenLibrary((STRPTR)"gadgets/html.gadget", 1);

@@ -45,8 +45,13 @@ script, or copy the classes manually:
 
 ```
 Copy Classes/Gadgets/html.gadget SYS:Classes/Gadgets/
-Copy Classes/Gadgets/htmlttf.gadget SYS:Classes/Gadgets/
+Copy Classes/Gadgets/htmlttf.gadget SYS:Classes/Gadgets/          ; 68000/68010
+Copy Classes/Gadgets/68020/htmlttf.gadget SYS:Classes/Gadgets/    ; 68020-68060
 ```
+
+htmlttf.gadget comes in a second build for 68020 to 68060, which `Install` picks
+automatically; it does without the 64 bit multiplications and divisions the 68060 only
+emulates. html.gadget spends its time in graphics.library and exists only as 68000 build.
 
 The demo runs directly from the archive: `Demo/HTMLDemo`, or `HTMLDemo TTF` for
 htmlttf.gadget (options `FONTSET Vera|DejaVu|Noto`, `SIZE n`). Started from the Workbench it
@@ -140,6 +145,8 @@ make dist       # Aminet archive dist/html_gadget.lha (icons, Installer script, 
 make icons      # sample icons of all styles in icons/ and icons/preview.png
 make CPU=-m68020
 ```
+
+`make` also builds `bin/68020/htmlttf.gadget` (`-m68020-60 -mtune=68060`).
 
 All Amiga sources and HTML examples are encoded in **ISO-8859-1** (the Amiga character
 set); `make` stops (`make charcheck`) if UTF-8 sneaks in. GitHub shows the umlauts in

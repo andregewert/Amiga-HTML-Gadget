@@ -31,11 +31,17 @@
         (dest "SYS:Classes/Gadgets")
         (confirm)))
 
+; htmlttf.gadget comes in two builds: 68000 and 68020-68060 (faster there)
+(set #cpu (database "cpu"))
+(set #ttf020 (if (OR (= #cpu "68000") (= #cpu "68010")) 0 1))
+
 (if (IN #parts 1)
     (copylib
-        (prompt (select #l "Installing htmlttf.gadget" "htmlttf.gadget wird installiert"))
+        (prompt (select #l
+            (cat "Installing htmlttf.gadget (" (select #ttf020 "68000" "68020+") " version)")
+            (cat "htmlttf.gadget wird installiert (Version für " (select #ttf020 "68000" "68020+") ")")))
         (help @copylib-help)
-        (source "Classes/Gadgets/htmlttf.gadget")
+        (source (select #ttf020 "Classes/Gadgets/htmlttf.gadget" "Classes/Gadgets/68020/htmlttf.gadget"))
         (dest "SYS:Classes/Gadgets")
         (confirm)))
 

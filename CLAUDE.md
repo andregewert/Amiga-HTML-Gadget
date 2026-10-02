@@ -21,6 +21,10 @@ Aufbau, Features und Build sind in `README.de.md` beschrieben.
 ## Bauen und Testen
 
 - `make`: Cross-Build (`/opt/amiga`, FreeType unter `~/AmiLib/freetype-2.3.8`), läuft lokal.
+- `make` baut `htmlttf.gadget` zusätzlich für 68020–68060 nach `bin/68020/` (eigene Objekte
+  in `build/68020/`). Die Optionen `-m68020-60 -mtune=68060` sind Absicht: Ohne
+  `-mtune=68060` erzeugt bebbos gcc 64-Bit-`mulu.l`/`divu.l` (z. B. für `x/255`), die der
+  68060 nur emuliert. In Pixel- und Glyphen-Schleifen keine `long long`-Arithmetik verwenden.
 - `make check`: Parser und Layout auf dem Host (ASan/UBSan). Die vollständige Ausgabe von
   `test/hosttest` wird mit `test/<seite>.expected` verglichen.
 - Bei einer gewollten Layoutänderung `make check-update` ausführen und die Änderungen an den
