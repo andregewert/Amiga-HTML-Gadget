@@ -44,9 +44,13 @@ struct Style {
 
 enum { AL_LEFT, AL_CENTER, AL_RIGHT };
 
+#define BUL_TEXT     (-1)           /* marker is text (ordered lists) */
+#define BUL_CHECKBOX (-2)           /* marker is the item's checkbox (task lists) */
+
 struct Bullet {
     int           active;
-    int           kind;          /* BUL_* or -1 for text */
+    int           kind;          /* BUL_*, BUL_TEXT or BUL_CHECKBOX */
+    int           check;         /* BUL_CHECKBOX: CK_* */
     const char   *text;
     long          textlen, textw;
     long          x;             /* content left edge of the <li> */
@@ -84,6 +88,7 @@ struct Box {
 };
 
 struct LCtx {
+    struct HNode   *markerinput; /* <input> shown as list marker, skipped in the text */
     struct HLayout *lay;
     struct HDoc    *doc;
     struct HEnv    *env;
@@ -295,7 +300,18 @@ static void emit_bullet(struct LCtx *L, struct Bullet *bu, long y, long base)
     struct HItem *it;
 
     bu->active = 0;
-    if (bu->kind < 0) {
+    if (bu->kind == BUL_CHECKBOX) {
+        /* where the numbers of ordered lists end; as low as inline boxes */
+        long size = fbase(L, bu->font) + 2;
+        if ((it = emit(L, IT_CHECK))) {
+            it->style = (unsigned char)bu->check;
+            it->w = it->h = size;
+            it->x = bu->x - L->em / 3 - size;
+            if (it->x < 0) it->x = 0;
+            it->y = y + base - size + size / 6;
+            it->link = -1;
+        }
+    } else if (bu->kind < 0) {
         if ((it = emit(L, IT_TEXT))) {
             it->font = (unsigned char)bu->font;
             it->x = bu->x - L->em / 3 - bu->textw;
@@ -786,6 +802,14 @@ static char *make_number(struct LCtx *L, long num, int type)
     return out;
 }
 
+static int is_blank(const char *s, long len)
+{
+    while (len-- > 0)
+        if (*s != ' ' && *s != '\t' && *s != '\n' && *s != '\r') return 0;
+        else s++;
+    return 1;
+}
+
 static void list_item(struct LCtx *L, struct Box *b, struct HNode *n, const struct Style *st)
 {
     struct Bullet *bu = &b->bullet;
@@ -806,7 +830,7 @@ static void list_item(struct LCtx *L, struct Box *b, struct HNode *n, const stru
     if (b->listkind) {
         int type = b->listkind;
         if ((a = html_attr(n, "type")) && *a) type = *a;
-        bu->kind = -1;
+        bu->kind = BUL_TEXT;
         if ((bu->text = make_number(L, b->counter, type))) {
             bu->textlen = h_strlen(bu->text);
             bu->textw = twidth(L, bu->font, 0, bu->text, bu->textlen);
@@ -820,6 +844,24 @@ static void list_item(struct LCtx *L, struct Box *b, struct HNode *n, const stru
             if (!h_stricmp(a, "circle")) bu->kind = BUL_CIRCLE;
             else if (!h_stricmp(a, "square")) bu->kind = BUL_SQUARE;
             else if (!h_stricmp(a, "disc")) bu->kind = BUL_DISC;
+        }
+    }
+    /* type="none" (item or list, as in the HTML standard): no marker, the
+     * indent stays; e.g. task lists, the checkbox takes its place       */
+    if (((a = html_attr(n, "type")) || (n->parent && (a = html_attr(n->parent, "type")))) &&
+        !h_stricmp(a, "none")) {
+        /* A checkbox at the start of such an item becomes its marker, in
+         * the column of the bullets (like task lists on GitHub)         */
+        struct HNode *c = n->first;
+        const char *t;
+        while (c && c->tag == T_TEXT && is_blank(c->text, c->len)) c = c->next;
+        if (c && c->tag == T_INPUT && (t = html_attr(c, "type")) &&
+            (!h_stricmp(t, "checkbox") || !h_stricmp(t, "radio"))) {
+            bu->kind = BUL_CHECKBOX;
+            bu->check = (!h_stricmp(t, "radio") ? CK_RADIO : 0) | (html_attr(c, "checked") ? CK_CHECKED : 0);
+            L->markerinput = c;
+        } else {
+            bu->active = 0;
         }
     }
     layout_children(L, b, n, st);
@@ -919,6 +961,8 @@ static void input(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
 {
     const char *type = html_attr(n, "type"), *val = html_attr(n, "value");
     int font = font_of(st);
+
+    if (n == L->markerinput) return;    /* drawn as the list marker */
     long h = fheight(L, font) + 4, cw = spacew(L, font);
 
     if (!type) type = "text";

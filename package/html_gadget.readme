@@ -84,6 +84,8 @@ History
  - HTMLDemo: no crash when started from the Workbench
  - checkboxes and radio buttons show their state, sized to the font
    (anti-aliased in htmlttf.gadget), e.g. for Markdown task lists
+ - lists: type="none" on the list or an item hides the marker; a
+   checkbox at the start of the item takes its place (task lists)
 1.0 (30.09.2026)
  - first release
 
@@ -120,5 +122,8 @@ Versionsgeschichte
  - Checkboxen und Radio-Buttons zeigen ihren Zustand, passend zur
    Schriftgröße (in htmlttf.gadget geglättet), z. B. für
    Markdown-Aufgabenlisten
+ - Listen: type="none" an der Liste oder einem Punkt blendet das Zeichen
+   aus; eine Checkbox am Anfang des Punkts tritt an seine Stelle
+   (Aufgabenlisten)
 1.0 (30.09.2026)
  - erste Veröffentlichung

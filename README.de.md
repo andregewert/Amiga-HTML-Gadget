@@ -44,7 +44,7 @@ Die Icons erzeugt `tools/mkicons.py`; `make icons` schreibt Beispiele aller Stil
 | Überschriften | `h1`–`h6` (größere Fonts, fett) |
 | Textstile | `b strong i em cite var dfn u ins s strike del tt code kbd samp big small sub sup q nobr` |
 | Fonts | `<font size="1-7/+n/-n" color="…" face="courier…">` |
-| Listen | `ul` (disc/circle/square, verschachtelt), `ol` (type 1/a/A/i/I, start, value), `dl`/`dt`/`dd`, `menu`, `dir` |
+| Listen | `ul` (disc/circle/square, verschachtelt), `ol` (type 1/a/A/i/I, start, value), `type="none"` an Liste oder Punkt blendet das Zeichen aus (eine Checkbox am Anfang des Punkts tritt an seine Stelle, wie bei Aufgabenlisten), `dl`/`dt`/`dd`, `menu`, `dir` |
 | Links | `<a href>` (Farben link/vlink/alink, besuchte Links), Anker `<a name>` und `id="…"` |
 | Tabellen | automatisches Spaltenlayout, `colspan`, `rowspan`, `border`, `cellpadding`, `cellspacing`, `width` (px/%), `align`, `valign`, `bgcolor` (table/tr/td), `nowrap`, `caption`, `th`, verschachtelte Tabellen |
 | Farben | `<body bgcolor text link vlink alink>`, `#rrggbb`, `#rgb`, 16 HTML-Farbnamen und einige mehr |

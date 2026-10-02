@@ -26,7 +26,7 @@
 | Headings | `h1`–`h6` (larger fonts, bold) |
 | Text styles | `b strong i em cite var dfn u ins s strike del tt code kbd samp big small sub sup q nobr` |
 | Fonts | `<font size="1-7/+n/-n" color="…" face="courier…">` |
-| Lists | `ul` (disc/circle/square, nested), `ol` (type 1/a/A/i/I, start, value), `dl`/`dt`/`dd`, `menu`, `dir` |
+| Lists | `ul` (disc/circle/square, nested), `ol` (type 1/a/A/i/I, start, value), `type="none"` on the list or item hides the marker (a checkbox at the start of the item takes its place, as in task lists), `dl`/`dt`/`dd`, `menu`, `dir` |
 | Links | `<a href>` (link/vlink/alink colours, visited links), anchors `<a name>` and `id="…"`, `#anchor` links are handled by the gadget |
 | Tables | automatic column widths, `colspan`, `rowspan`, `border`, `cellpadding`, `cellspacing`, `width` (px/%), `align`, `valign`, `bgcolor`, `nowrap`, `caption`, `th`, nested tables |
 | Backgrounds | `bgcolor` on `body`, `table`, `tr`, `td`, `th`; tiled background pictures on `body` (scrolls with the page), `table`, `td`, `th` |
