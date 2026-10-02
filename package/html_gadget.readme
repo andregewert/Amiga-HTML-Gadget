@@ -52,6 +52,9 @@ Contents
  Developer/           includes (gadgets, proto, inline, clib), FD, SFD,
                       Autodocs
  Docs/                German documentation (LiesMich.txt)
+ Icons/               the archive's icons as GlowIcons and NewIcons (and
+                      the classic ones); double click UseGlowIcons,
+                      UseNewIcons or UseClassic to switch
  Source/              complete source code (C, cross compiled with
                       bebbo's amiga-gcc and NDK 3.2; FreeType 2.3.8 from
                       Aminet dev/lib/freetype-2.3.8 is needed for

@@ -54,3 +54,12 @@ Aufbau, Features und Build sind in `README.de.md` beschrieben.
   `Makefile` stehen. `tools/mkdist.py` übernimmt `demo/*.html` automatisch.
 - Neue Features in `README.md` **und** `README.de.md` dokumentieren, Tags/Attribute
   ggf. auch in `doc/*.doc`.
+
+## Icons
+
+- Alle Icons (klassisch, GlowIcons, NewIcons) zeichnet `tools/mkicons.py`; `mkdist.py`
+  schreibt damit die Icons des Archivs (klassisch neben den Dateien, alle Stile in
+  `Icons/<Stil>/`). Die Dateien in `icons/` sind Beispiele zum Ansehen auf dem Amiga und
+  werden mit `make icons` neu erzeugt, nie von Hand bearbeitet.
+- NewIcons: Bildbreite 42 und 14 Farben sind Absicht (Paletten- und Zeilenenden fallen
+  auf 7-Bit-Grenzen), siehe Kommentare in `mkicons.py`.

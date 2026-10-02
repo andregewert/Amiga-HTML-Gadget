@@ -124,6 +124,10 @@ check-update: test/hosttest
 		./test/hosttest $$f $$w > test/$$n.expected && echo "updated test/$$n.expected"; \
 	done
 
+# sample icons of every style (icons/<Style>/*.info) and icons/preview.png
+icons:
+	python3 tools/mkicons.py
+
 # Aminet archive: dist/html_gadget.lha (+ html_gadget.readme)
 dist: all
 	FT=$(FT) python3 tools/mkdist.py
@@ -131,4 +135,4 @@ dist: all
 clean:
 	rm -rf build bin dist test/hosttest test/ttfpreview preview.ppm
 
-.PHONY: all clean check check-update charcheck preview dist
+.PHONY: all clean check check-update charcheck preview dist icons

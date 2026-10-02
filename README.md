@@ -53,6 +53,12 @@ htmlttf.gadget (options `FONTSET Vera|DejaVu|Noto`, `SIZE n`). Started from the 
 reads the same options from its tool types (`TTF`, `FONTSET=…`, `SIZE=…`, `FILE=…`; the icon
 contains them disabled in parentheses) and opens a project whose default tool is HTMLDemo.
 
+The archive comes with classic 4 colour icons. `Icons/` contains complete sets in
+**GlowIcons** and **NewIcons** style (both shown natively by the icon.library of OS 3.2):
+double click `UseGlowIcons`, `UseNewIcons` or `UseClassic`.
+
+![Icon styles: Classic, GlowIcons, NewIcons (normal and selected)](icons/preview.png)
+
 ## Usage
 
 ```c
@@ -131,6 +137,7 @@ make check      # parser + layout tests on the host (AddressSanitizer), compared
 make check-update  # accept an intended layout change as new reference
 make preview    # renders demo/example.html with the FreeType renderer to preview.ppm
 make dist       # Aminet archive dist/html_gadget.lha (icons, Installer script, Autodocs)
+make icons      # sample icons of all styles in icons/ and icons/preview.png
 make CPU=-m68020
 ```
 

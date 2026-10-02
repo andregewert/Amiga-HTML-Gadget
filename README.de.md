@@ -21,6 +21,14 @@ Zum Ausprobieren: `bin/HTMLDemo` mit den Beispielseiten und -bildern aus `bin/` 
 Verzeichnis kopieren und `HTMLDemo` starten (ohne Installation sucht die Demo
 die Klasse auch im Programmverzeichnis).
 
+Das Archiv hat klassische Icons mit 4 Farben. In `Icons/` liegen vollständige Sätze im
+**GlowIcons**- und **NewIcons**-Stil (beide zeigt die icon.library von OS 3.2 direkt an):
+Doppelklick auf `UseGlowIcons`, `UseNewIcons` oder `UseClassic`.
+Die Icons erzeugt `tools/mkicons.py`; `make icons` schreibt Beispiele aller Stile nach
+`icons/` und eine Vorschau nach `icons/preview.png`.
+
+![Icon-Stile: klassisch, GlowIcons, NewIcons (normal und ausgewählt)](icons/preview.png)
+
 ## Was dargestellt wird
 
 | Bereich | Unterstützt |
@@ -162,6 +170,7 @@ make check      # Parser + Layout auf dem Host (mit AddressSanitizer), Vergleich
 make check-update  # gewollte Layoutänderung als neue Referenz übernehmen
 make CPU=-m68020
 make dist       # Aminet-Paket html_gadget.lha (mit Icons, Installer-Skript, Autodocs)
+make icons      # Beispiel-Icons aller Stile in icons/ und icons/preview.png
 ```
 
 Alle Amiga-Quellen und HTML-Beispiele sind **ISO-8859-1** kodiert; `make` bricht mit
