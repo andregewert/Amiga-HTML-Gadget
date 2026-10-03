@@ -71,6 +71,8 @@ def main():
         text = to_latin1_text(f.read())
     with open(os.path.join(docs, 'LiesMich.txt'), 'wb') as f:
         f.write(text)
+    # the READMEs show the screenshot
+    copy(b('screenshot-amiga.png'), os.path.join(docs, 'screenshot-amiga.png'))
 
     src = os.path.join(PKG, 'Source')
     for d in ('src', 'ttf', 'include', 'sfd', 'doc', 'package', 'tools'):
@@ -78,8 +80,9 @@ def main():
     copytree(b('demo'), os.path.join(src, 'demo'), ignore=('fonts',))
     for f in glob.glob(b('test', '*.c')):
         copy(f, os.path.join(src, 'test', os.path.basename(f)))
-    for f in ('Makefile', 'README.md', 'README.de.md', 'LICENSE'):
+    for f in ('Makefile', 'README.md', 'README.de.md', 'LICENSE', 'screenshot-amiga.png'):
         copy(b(f), os.path.join(src, f))
+    copy(b('icons', 'preview.png'), os.path.join(src, 'icons', 'preview.png'))
 
     # icons: classic ones next to the files, every style also in Icons/<Style>/
     mv = 'SYS:Utilities/MultiView'

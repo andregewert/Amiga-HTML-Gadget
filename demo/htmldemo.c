@@ -44,7 +44,7 @@
 
 #include <string.h>
 
-static const char version[] = "$VER: HTMLDemo 1.1 (02.10.2026)";
+static const char version[] = "$VER: HTMLDemo 1.1 (03.10.2026)";
 
 /* initialised explicitly: as COMMON symbols they would pull in the
  * auto-open stubs of libstubs.a, which try to open "window.library" */

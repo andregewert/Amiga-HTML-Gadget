@@ -72,7 +72,7 @@ text flowing around tables, network access.
 
 History
 -------
-1.1 (02.10.2026)
+1.1 (03.10.2026)
  - tables: cells spanning several rows (rowspan)
  - pictures with align=left/right, text flows around them
  - html.gadget: links are underlined with every font and without gaps
@@ -109,7 +109,7 @@ Docs/LiesMich.txt. Installation mit dem beiliegenden Installer-Skript.
 
 Versionsgeschichte
 ------------------
-1.1 (02.10.2026)
+1.1 (03.10.2026)
  - Tabellen: Zellen über mehrere Zeilen (rowspan)
  - Bilder mit align=left/right, der Text umfließt sie
  - html.gadget: Links werden mit jedem Font und ohne Lücken zwischen den
