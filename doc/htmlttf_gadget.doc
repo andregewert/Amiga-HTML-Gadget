@@ -163,7 +163,11 @@ htmlttf.gadget/HTMLTTF_Size
 
     Call it with DoMethod() from the application's process, not with
     DoGadgetMethod(). The window may stay open meanwhile; the gadget is
-    locked until the method returns.
+    locked until the method returns. Meanwhile it does not draw and
+    ignores clicks and scroller updates (Intuition must not wait for it,
+    e.g. while a window is moved); it is redrawn when the method is over.
+    The progress hook may update other gadgets, e.g. a progress window,
+    but must not make this gadget draw (it runs on the gadget's stack).
 
    TAGS
     HTMLEX_File (BPTR) - the output, opened with MODE_NEWFILE; a file,

@@ -105,6 +105,11 @@ struct HTMLData {
     LONG              laywidth;          /* width of the current layout, -1 = none */
     LONG              margin;
     BOOL              syscolors, autoanchors, frame;
+    /* a long method (export, print layout) holds the lock: Intuition's
+     * calls from input.device must not wait for it meanwhile          */
+    volatile BOOL     longop;
+    struct Task      *longtask;
+    struct Window    *deferwin;         /* drawing left out meanwhile, in this window */
     LONG              activelink;        /* link under the pressed mouse button */
     BOOL              pressed;
     BOOL              havebox;           /* size known (GM_LAYOUT/GM_RENDER seen) */
@@ -2149,8 +2154,53 @@ static ULONG print_render(Class *cl, Object *o, struct hmPrintRender *msg)
     return (ULONG)a.ok;
 }
 
+/* While HTMLM_Export or HTMLM_PrintBegin run (seconds), the methods that
+ * Intuition calls on input.device do not wait for the lock: Intuition
+ * would stop, and while it holds the screen's layers (moving a window)
+ * the application drawing a progress window would wait for Intuition -
+ * a deadlock. Drawing is left out and done when the method is over;
+ * clicks and scroller updates are ignored meanwhile.                    */
+static BOOL held_long(struct HTMLData *d)
+{
+    return d->longop && FindTask(NULL) != d->longtask;
+}
+
+static void long_begin(struct HTMLData *d)
+{
+    d->longtask = FindTask(NULL);
+    d->longop = TRUE;
+}
+
+static void long_end(Object *o, struct HTMLData *d)
+{
+    struct Window *win;
+    Forbid();
+    d->longop = FALSE;
+    win = d->deferwin;
+    d->deferwin = NULL;
+    Permit();
+    if (win) RefreshGList((struct Gadget *)o, win, NULL, 1);
+}
+
 ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __asm("a1"))
 {
+    struct HTMLData *ld = msg->MethodID != OM_NEW ? INST_DATA(cl, o) : NULL;
+
+    if (ld && held_long(ld))
+        switch (msg->MethodID) {
+        case GM_RENDER:
+            if (((struct gpRender *)msg)->gpr_GInfo) ld->deferwin = ((struct gpRender *)msg)->gpr_GInfo->gi_Window;
+            return 0;
+        case GM_LAYOUT:
+            if (((struct gpLayout *)msg)->gpl_GInfo) ld->deferwin = ((struct gpLayout *)msg)->gpl_GInfo->gi_Window;
+            return 0;
+        case GM_GOACTIVE:
+        case GM_HANDLEINPUT:
+            return GMR_NOREUSE;
+        case OM_SET:
+        case OM_UPDATE:
+            return dsm(cl, o, msg);
+        }
     switch (msg->MethodID) {
     case OM_NEW:
         return (ULONG)om_new(cl, o, (struct opSet *)msg);
@@ -2179,9 +2229,14 @@ ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __as
     case GM_GOINACTIVE:
         return gm_goinactive(cl, o, (struct gpGoInactive *)msg);
     case HTMLM_Export:
-        return (ULONG)export_doc(cl, o, (struct hmExport *)msg);
-    case HTMLM_PrintBegin:
-        return (ULONG)print_begin(cl, o, (struct hmPrintBegin *)msg);
+    case HTMLM_PrintBegin: {
+        LONG r;
+        long_begin(ld);
+        r = msg->MethodID == HTMLM_Export ? export_doc(cl, o, (struct hmExport *)msg)
+                                          : print_begin(cl, o, (struct hmPrintBegin *)msg);
+        long_end(o, ld);
+        return (ULONG)r;
+    }
     case HTMLM_PrintRender:
         return print_render(cl, o, (struct hmPrintRender *)msg);
     case HTMLM_PrintEnd: {
