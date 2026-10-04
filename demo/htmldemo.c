@@ -44,7 +44,12 @@
 
 #include <string.h>
 
-static const char version[] = "$VER: HTMLDemo 1.1 (03.10.2026)";
+static const char version[] = "$VER: HTMLDemo 1.2 (04.10.2026)";
+
+/* libnix swaps to a stack of this size at the start (linked with
+ * -Wl,-u,___stkinit): started from the Workbench without its own icon,
+ * the default tool icon gives only 4 KB, too little for ReAction     */
+unsigned long __stack = 32768;
 
 /* initialised explicitly: as COMMON symbols they would pull in the
  * auto-open stubs of libstubs.a, which try to open "window.library" */
@@ -58,11 +63,14 @@ struct Library *WindowBase = NULL, *LayoutBase = NULL, *ButtonBase = NULL,
                *ScrollerBase = NULL, *HTMLBase = NULL;
 
 enum { GID_HTML = 1, GID_VSCROLL, GID_HSCROLL, GID_BACK, GID_STATUS };
-enum { MID_BACK = 1, MID_QUIT, MID_COPY, MID_SELALL };
+enum { MID_BACK = 1, MID_QUIT, MID_COPY, MID_SELALL, MID_PS, MID_PDF };
 
 static struct NewMenu menus[] = {
     { NM_TITLE, (STRPTR)"Projekt",          0,   0, 0, 0 },
     { NM_ITEM,  (STRPTR)"Zurück",        (STRPTR)"B", 0, 0, (APTR)MID_BACK },
+    { NM_ITEM,  NM_BARLABEL,                 0,   0, 0, 0 },
+    { NM_ITEM,  (STRPTR)"PostScript nach RAM:HTMLDemo.ps", (STRPTR)"P", 0, 0, (APTR)MID_PS },
+    { NM_ITEM,  (STRPTR)"PDF nach RAM:HTMLDemo.pdf",       (STRPTR)"D", 0, 0, (APTR)MID_PDF },
     { NM_ITEM,  NM_BARLABEL,                 0,   0, 0, 0 },
     { NM_ITEM,  (STRPTR)"Beenden",           (STRPTR)"Q", 0, 0, (APTR)MID_QUIT },
     { NM_TITLE, (STRPTR)"Bearbeiten",        0,   0, 0, 0 },
@@ -309,6 +317,73 @@ static void copy_selection(void)
     }
 }
 
+/* appends s or the number v to buf (no stdio: it would add libnix's
+ * console handling for the Workbench start)                          */
+static void cat_str(char *buf, const char *s)
+{
+    while (*buf) buf++;
+    while ((*buf++ = *s++)) ;
+}
+
+static void cat_num(char *buf, LONG v)
+{
+    char d[12];
+    int i = 11;
+    ULONG u = v < 0 ? (ULONG)-v : (ULONG)v;
+    d[i] = 0;
+    do d[--i] = (char)('0' + u % 10); while ((u /= 10) && i > 1);
+    if (v < 0) d[--i] = '-';
+    cat_str(buf, d + i);
+}
+
+/* the document as PostScript or PDF (HTMLM_Export, html.gadget V1.2) */
+static void export_doc(BOOL pdf)
+{
+    static char msg[120];
+    CONST_STRPTR name = (CONST_STRPTR)(pdf ? "RAM:HTMLDemo.pdf" : "RAM:HTMLDemo.ps");
+    LONG n, pages = 0;
+    BPTR fh;
+    struct TagItem tags[] = {
+        { HTMLEX_File, 0 },
+        { HTMLEX_Format, 0 },
+        { HTMLEX_Footer, (ULONG)"Seite %p von %n" },
+        { HTMLEX_Pages, 0 },
+        { TAG_DONE, 0 }
+    };
+
+    if (HTMLBase->lib_Version < 1 || (HTMLBase->lib_Version == 1 && HTMLBase->lib_Revision < 2)) {
+        set_status((CONST_STRPTR)"Export braucht html.gadget 1.2");
+        return;
+    }
+    if (!(fh = Open((STRPTR)name, MODE_NEWFILE))) {
+        set_status((CONST_STRPTR)"Datei kann nicht angelegt werden");
+        return;
+    }
+    tags[0].ti_Data = (ULONG)fh;
+    tags[1].ti_Data = pdf ? HTMLEXF_PDF : HTMLEXF_PS;
+    tags[3].ti_Data = (ULONG)&pages;
+    set_status((CONST_STRPTR)"Exportiere ...");
+    n = (LONG)DoMethod(html, HTMLM_Export, (ULONG)tags);
+    Close(fh);
+    msg[0] = 0;
+    if (n > 0) {
+        cat_str(msg, (const char *)name);
+        cat_str(msg, ": ");
+        cat_num(msg, n);
+        cat_str(msg, " von ");
+        cat_num(msg, pages);
+        cat_str(msg, " Seiten geschrieben");
+    } else {
+        LONG err = IoErr();
+        cat_str(msg, "Export fehlgeschlagen (");
+        cat_num(msg, n);
+        cat_str(msg, ", Fehler ");
+        cat_num(msg, err);
+        cat_str(msg, ")");
+    }
+    set_status((CONST_STRPTR)msg);
+}
+
 static void page(int dir)
 {
     ULONG vis = 0, lh = 8;
@@ -499,6 +574,8 @@ int main(void)
                     case MID_BACK:   go_back(); break;
                     case MID_QUIT:   done = TRUE; break;
                     case MID_COPY:   copy_selection(); break;
+                    case MID_PS:     export_doc(FALSE); break;
+                    case MID_PDF:    export_doc(TRUE); break;
                     case MID_SELALL:
                         SetGadgetAttrs((struct Gadget *)html, win, NULL, HTML_SelectAll, TRUE, TAG_DONE);
                         break;

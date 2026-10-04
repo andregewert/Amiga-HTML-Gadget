@@ -2,7 +2,7 @@ Short:        ReAction class rendering simple HTML 4
 Author:       André Gewert <agewert@ubergeek.de>
 Uploader:     André Gewert <agewert@ubergeek.de>
 Type:         dev/gui
-Version:      1.1
+Version:      1.2
 Architecture: m68k-amigaos >= 3.2.0
 Requires:     AmigaOS 3.2, 68000+; htmlttf.gadget: RTG recommended
 Distribution: Aminet
@@ -72,6 +72,16 @@ text flowing around tables, network access.
 
 History
 -------
+1.2 (04.10.2026)
+ - printing and export: the new method HTMLM_Export writes the document
+   as PostScript or PDF (paper size, margins, font size, Helvetica or
+   Times, page numbers); text stays text, pictures with their original
+   pixels and transparency, pages break between lines and keep headings
+   with their text
+ - HTMLDemo: export to RAM:HTMLDemo.ps / .pdf from the Project menu;
+   it sets its own stack (32 KB), so it also runs without its icon
+ - Autodocs and ReadMe: notes on the stack an application needs and how
+   to set it in the code
 1.1 (03.10.2026)
  - tables: cells spanning several rows (rowspan)
  - pictures with align=left/right, text flows around them
@@ -109,6 +119,16 @@ Docs/LiesMich.txt. Installation mit dem beiliegenden Installer-Skript.
 
 Versionsgeschichte
 ------------------
+1.2 (04.10.2026)
+ - Drucken und Export: die neue Methode HTMLM_Export schreibt das
+   Dokument als PostScript oder PDF (Papierformat, Ränder,
+   Schriftgröße, Helvetica oder Times, Seitenzahlen); Text bleibt Text,
+   Bilder mit ihren Originalpixeln und Transparenz, Seitenumbrüche
+   zwischen Zeilen, Überschriften bleiben bei ihrem Text
+ - HTMLDemo: Export nach RAM:HTMLDemo.ps / .pdf im Menü Projekt; es
+   setzt seinen Stack selbst (32 KB) und läuft so auch ohne sein Icon
+ - Autodocs und LiesMich: Hinweise zum Stack, den eine Anwendung braucht,
+   und wie sie ihn im Code festlegt
 1.1 (03.10.2026)
  - Tabellen: Zellen über mehrere Zeilen (rowspan)
  - Bilder mit align=left/right, der Text umfließt sie

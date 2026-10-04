@@ -22,6 +22,13 @@ enum { HP_PS, HP_PDF };
 #define HP_ERROR    (-1)            /* out of memory */
 #define HP_ABORTED  (-2)            /* the progress callback asked to stop */
 
+/* pixels of a picture, filled by the image callback */
+struct HPrintImage {
+    long                 w, h;      /* size in pixels */
+    const unsigned long *argb;      /* w * h pixels 0xAARRGGBB, row by row; A = 255: opaque */
+    void                *priv;      /* for the callback */
+};
+
 struct HPrintOpts {
     int         format;             /* HP_PS or HP_PDF */
     long        paper_w, paper_h;   /* paper size in points (A4: 595 x 842) */
@@ -36,6 +43,10 @@ struct HPrintOpts {
     void      (*write)(void *user, const char *data, long len);
     /* called before each page; non-zero stops (HP_ABORTED) */
     int       (*progress)(void *user, long page, long pages);
+    /* pixels of a picture (HNode.img); 0 if not available: a frame is
+     * drawn instead. image_free() is called when they are written.    */
+    int       (*image)(void *user, void *img, struct HPrintImage *pi);
+    void      (*image_free)(void *user, struct HPrintImage *pi);
     void       *user;
 };
 

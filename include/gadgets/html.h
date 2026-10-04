@@ -1,7 +1,7 @@
 #ifndef GADGETS_HTML_H
 #define GADGETS_HTML_H
 /*
-**  $VER: html.h 1.0 (30.09.2026)
+**  $VER: html.h 1.2 (04.10.2026)
 **  Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 **
 **  Definitions for the html.gadget ReAction class (AmigaOS 3.2)
@@ -118,6 +118,54 @@
 /* Directory part of the last HTML_File (for resolving relative links),
  * "" if the text was set with HTML_Text.                            (G)    */
 #define HTML_BaseDir        (HTML_Dummy + 20)    /* STRPTR */
+
+/*****************************************************************************/
+/* Printing and export (V1.2)                                                */
+
+/* Writes the document as PostScript or PDF to a DOS file handle. The
+ * document is laid out again for the paper with the standard PostScript
+ * fonts (Helvetica or Times, Courier), text stays text, pictures are
+ * included with their original pixels. Call it with DoMethod() (not
+ * DoGadgetMethod()) from the application's process.
+ *
+ * Result: number of pages written, 0 if the page range was empty, -1 on
+ * an error (IoErr(): write error or ERROR_NO_FREE_STORE), -2 if the
+ * progress hook stopped it.                                              */
+#define HTMLM_Export        (HTML_Dummy + 0x100)
+
+struct hmExport {
+    ULONG           MethodID;
+    struct TagItem *hme_Tags;
+};
+
+#define HTMLEX_Dummy        (HTML_Dummy + 0x200)
+#define HTMLEX_File         (HTMLEX_Dummy + 1)   /* BPTR, required */
+#define HTMLEX_Format       (HTMLEX_Dummy + 2)   /* HTMLEXF_PS (default) or HTMLEXF_PDF */
+#define HTMLEX_PaperWidth   (HTMLEX_Dummy + 3)   /* LONG points, default 595 (A4) */
+#define HTMLEX_PaperHeight  (HTMLEX_Dummy + 4)   /* LONG points, default 842 (A4) */
+#define HTMLEX_MarginLeft   (HTMLEX_Dummy + 5)   /* LONG points, default 57 (20 mm) */
+#define HTMLEX_MarginTop    (HTMLEX_Dummy + 6)
+#define HTMLEX_MarginRight  (HTMLEX_Dummy + 7)
+#define HTMLEX_MarginBottom (HTMLEX_Dummy + 8)
+#define HTMLEX_FontSize     (HTMLEX_Dummy + 9)   /* LONG 1/10 points, default 100 */
+#define HTMLEX_Serif        (HTMLEX_Dummy + 10)  /* BOOL text in Times, default FALSE */
+#define HTMLEX_Backgrounds  (HTMLEX_Dummy + 11)  /* BOOL print background colours, default TRUE */
+#define HTMLEX_Footer       (HTMLEX_Dummy + 12)  /* STRPTR page footer, %p page, %n pages; default none */
+#define HTMLEX_Title        (HTMLEX_Dummy + 13)  /* STRPTR, default the document title */
+#define HTMLEX_FirstPage    (HTMLEX_Dummy + 14)  /* LONG from 1, default 1 */
+#define HTMLEX_LastPage     (HTMLEX_Dummy + 15)  /* LONG, default the last page */
+#define HTMLEX_ProgressHook (HTMLEX_Dummy + 16)  /* struct Hook *, object: the gadget,
+                                                    message: struct HTMLExportProgress;
+                                                    return non-zero to stop */
+#define HTMLEX_Pages        (HTMLEX_Dummy + 17)  /* LONG *, gets the number of pages */
+
+#define HTMLEXF_PS          0
+#define HTMLEXF_PDF         1
+
+struct HTMLExportProgress {
+    LONG Page;                      /* the page about to be written, from 1 */
+    LONG Pages;                     /* pages of the document */
+};
 
 /*****************************************************************************/
 

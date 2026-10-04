@@ -12,10 +12,10 @@ O       ?= bin
 CFLAGS  := $(CPU) -Os -fno-common -fomit-frame-pointer -fno-toplevel-reorder -fno-builtin \
            -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Iinclude -Isrc
 LIBFLAGS:= -nostartfiles -nostdlib
-DEMOFLAGS := $(CPU) -Os -Wall -fno-common -Iinclude -noixemul
+DEMOFLAGS := $(CPU) -Os -Wall -fno-common -Iinclude -noixemul -Wl,-u,___stkinit
 
 LIBSRC  := src/html_lib.c src/html_class.c src/html_parse.c src/html_layout.c src/html_select.c src/html_clip.c \
-           src/html_check.c src/html_print.c src/html_afm.c
+           src/html_check.c src/html_print.c src/html_afm.c src/html_export.c
 LIBOBJ  := $(LIBSRC:src/%.c=$(B)/%.o)
 
 DEMOFILES := $(addprefix bin/,example.html zweite.html hintergrund.html tabellen.html umfluss.html boing.gif farben.iff papier.gif kachel.gif streifen.gif)
@@ -35,7 +35,7 @@ FTSRC   := ttf/ftbase_html.c $(FT)/src/base/ftinit.c $(FT)/src/base/ftdebug.c \
            $(FT)/src/smooth/smooth.c ttf/ftsystem.c ttf/ftlibc.c
 FTOBJ   := $(addprefix $(B)/ft/,$(notdir $(FTSRC:.c=.o)))
 TTFOBJ  := $(B)/ttf/html_lib.o $(B)/ttf/htmlttf_class.o $(B)/ttf/htmlttf_render.o $(B)/html_parse.o $(B)/html_layout.o $(B)/html_select.o $(B)/html_clip.o $(B)/html_check.o \
-           $(B)/html_print.o $(B)/html_afm.o $(FTOBJ)
+           $(B)/html_print.o $(B)/html_afm.o $(B)/html_export.o $(FTOBJ)
 
 all: charcheck bin/html.gadget bin/htmlttf.gadget bin/HTMLDemo $(DEMOFILES) $(FONTFILES)
 
@@ -64,7 +64,7 @@ $(B)/ttf/html_lib.o: src/html_lib.c src/html_private.h
 	@mkdir -p $(B)/ttf
 	$(CC) $(CFLAGS) -DHTML_TTF '-DLIBNAME="htmlttf.gadget"' -c $< -o $@
 
-$(B)/ttf/htmlttf_class.o: src/htmlttf_class.c src/htmlttf_render.h src/html_core.h $(FTCONF) src/html_private.h include/gadgets/html.h include/gadgets/htmlttf.h
+$(B)/ttf/htmlttf_class.o: src/htmlttf_class.c src/htmlttf_render.h src/html_core.h src/html_export.h src/html_print.h $(FTCONF) src/html_private.h include/gadgets/html.h include/gadgets/htmlttf.h
 	@mkdir -p $(B)/ttf
 	$(CC) $(CFLAGS) -DHTML_TTF $(FTDEFS) -c $< -o $@
 
@@ -90,7 +90,7 @@ charcheck:
 	@if LC_ALL=C grep -lP '[\xC2-\xF4][\x80-\xBF]' $(LATIN1); then \
 		echo "*** Die Dateien oben enthalten UTF-8, bitte nach ISO-8859-1 wandeln"; exit 1; fi
 
-$(B)/%.o: src/%.c src/html_core.h src/html_print.h src/html_private.h include/gadgets/html.h
+$(B)/%.o: src/%.c src/html_core.h src/html_print.h src/html_export.h src/html_private.h include/gadgets/html.h
 	@mkdir -p $(B)
 	$(CC) $(CFLAGS) -c $< -o $@
 

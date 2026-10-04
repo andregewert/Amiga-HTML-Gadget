@@ -27,11 +27,21 @@ Aufbau, Features und Build sind in `README.de.md` beschrieben.
   68060 nur emuliert. In Pixel- und Glyphen-Schleifen keine `long long`-Arithmetik verwenden.
 - `make check`: Parser und Layout auf dem Host (ASan/UBSan). Die vollständige Ausgabe von
   `test/hosttest` wird mit `test/<seite>.expected` verglichen.
+- `make check` erzeugt außerdem mit `test/hostprint` (Druck-Engine `src/html_print.c`) von
+  jeder Testseite PostScript und PDF und lässt beide von Ghostscript lesen (Fehlermeldungen
+  = FAIL). `make print-preview` rendert die PDFs nach `build/print/*.png` zum Ansehen.
+  Die Druck-Engine ist plattformunabhängig (Layout in Pixeln zu 1/96 Zoll mit den
+  AFM-Breiten aus `src/html_afm.c`, erzeugt von `tools/afm2c.py`); die Amiga-Seite
+  (`HTMLM_Export`: Tags, DOS-Ausgabe, Bildpixel) steht in `src/html_export.c`.
 - Bei einer gewollten Layoutänderung `make check-update` ausführen und die Änderungen an den
   `.expected`-Dateien im Diff prüfen, bevor sie eingecheckt werden.
 - Vor einem Commit: `make` (enthält `charcheck`) und `make check`.
 
 ## Testen auf dem Amiga
+
+- HTMLDemo setzt seinen Stack selbst (`__stack`, gelinkt mit `-Wl,-u,___stkinit`), ohne Icon
+  gäbe die Workbench nur 4 KB. Keine stdio-Funktionen (`sprintf` …) in HTMLDemo verwenden:
+  libnix zieht dann seine Konsolen-Initialisierung für den Workbench-Start nach.
 
 - HTMLDemo öffnet zuerst `gadgets/html.gadget` bzw. `gadgets/htmlttf.gadget` (residente
   Kopie oder `SYS:Classes/Gadgets/`) und erst danach `PROGDIR:`. Eine alte installierte

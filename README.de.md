@@ -49,6 +49,7 @@ Die Icons erzeugt `tools/mkicons.py`; `make icons` schreibt Beispiele aller Stil
 | Tabellen | automatisches Spaltenlayout, `colspan`, `rowspan`, `border`, `cellpadding`, `cellspacing`, `width` (px/%), `align`, `valign`, `bgcolor` (table/tr/td), `nowrap`, `caption`, `th`, verschachtelte Tabellen |
 | Farben | `<body bgcolor text link vlink alink>`, `#rrggbb`, `#rgb`, 16 HTML-Farbnamen und einige mehr |
 | Hintergründe | `bgcolor` bei `body`, `table`, `tr`, `td`, `th`; Hintergrundbilder `<body background>` (über die Seite gekachelt, scrollt mit) sowie `background` bei `table`, `td`, `th` |
+| Drucken | `HTMLM_Export` (V1.2) schreibt das Dokument als **PostScript oder PDF** für ein Papierformat: PostScript-Standardschriften (Helvetica/Times, Courier), Text bleibt Text, Bilder mit Originalpixeln und Transparenz, Seitenzahlen, Seitenumbrüche zwischen Zeilen; in eine Datei, nach `PRT:` oder an einen PostScript-Handler |
 | Zeichensatz | Latin-1; UTF-8 wird automatisch erkannt und nach Latin-1 gewandelt. Alle HTML-4-Latin-1-Entities, `&#nnn;`, `&#xhh;` und typografische Zeichen (`&euro;` → „EUR", `&hellip;` → „...") |
 | Formulare | `input` wird als Platzhalter-Rahmen gezeichnet (nicht bedienbar); Checkboxen und Radio-Buttons zeigen ihren Zustand (`checked`) als Grafik, in htmlttf.gadget geglättet, passend zur Schriftgröße, nur lesend (z. B. Markdown-Aufgabenlisten) |
 | Bilder | `img` (und `input type=image`) über **datatypes.library** in jedem installierten Format (GIF, IFF, PNG, JPEG …), an die Screen-Palette angepasst, Transparenz über die Maske, `width`/`height` skalieren das Bild (per `PDTM_SCALE`, sonst mit `BitMapScale()`; fehlt eine Angabe, bleibt das Seitenverhältnis erhalten). Nicht ladbare Bilder erscheinen als Rahmen mit `alt`-Text. Bei `align=left/right` umfließt der Text das Bild (`hspace`, `vspace`, `br clear=left/right/all`) |
@@ -92,6 +93,31 @@ struct TagItem html2scroller[] = {
 struct TagItem scroller2html[] = { { SCROLLER_Top, HTML_Top }, { TAG_DONE } };
 ```
 
+### Stack
+
+Für die stackhungrigen Arbeiten wechselt das Gadget auf einen eigenen Stack von 64 KB: Parsen,
+Layout, die FreeType-Ausgabe von htmlttf.gadget und `HTMLM_Export` (Intuition ruft das Gadget
+unter Umständen im input.device-Task auf). Anderes läuft auf dem Stack der **aufrufenden
+Anwendung**: Beim Setzen von `HTML_File` oder `HTML_Text` lädt das Gadget die Bilder über die
+datatypes.library und öffnet Schriften mit der diskfont.library, dazu kommen window.class und
+layout.gadget. Die Anwendung sollte **mindestens 16 KB, besser 32 KB** Stack haben; zu wenig
+Stack führt typischerweise beim Laden eines Dokuments oder seiner Bilder zum Absturz
+(Software-Fehler 80000003/80000004).
+
+Von der Workbench bekommt ein Programm den Stack aus seinem Icon, ein Programm ohne eigenes Icon
+nur 4 KB; in der Shell setzt ihn der Befehl `Stack`. Unabhängig davon kann die Anwendung ihren
+Stack im Code sicherstellen:
+
+```c
+/* libnix (bebbos amiga-gcc, -noixemul), linken mit -Wl,-u,___stkinit:
+ * der Startcode wechselt auf einen Stack dieser Größe, wenn der aktuelle kleiner ist */
+unsigned long __stack = 32768;
+```
+
+SAS/C berücksichtigt ebenso `long __stack = 32768;`; mit jedem Compiler lässt sich der
+GUI-Code über `exec.library/StackSwap()` aufrufen, so wie es das Gadget selbst tut. HTMLDemo
+nutzt den Weg über libnix.
+
 ### Attribute
 
 | Tag | Typ | Anw. | Bedeutung |
@@ -119,6 +145,7 @@ struct TagItem scroller2html[] = { { SCROLLER_Top, HTML_Top }, { TAG_DONE } };
 | `HTML_SelectAll` / `HTML_ClearSelection` | BOOL | S | alles markieren / Markierung aufheben |
 | `HTML_HasSelection` | BOOL | G | ist Text markiert? |
 | `HTML_SelectedText` | STRPTR | G | markierter Text (Latin-1), gehört dem Gadget |
+| `HTMLM_Export` | Methode | | schreibt das Dokument als PostScript oder PDF, Tags `HTMLEX_…` (V1.2) |
 
 ## htmlttf.gadget – alternativer Renderer mit FreeType
 
@@ -211,6 +238,8 @@ anderen Screen, erscheinen die Bilder als leere Rahmen, bis das Dokument erneut 
 | `src/html_class.c` | BOOPSI-Dispatcher, Fonts (diskfont), Pens (`ObtainBestPen`), Bilder (datatypes), Rendering, Link-Klicks |
 | `src/html_select.c` | Textmarkierung: Mausposition → Zeichen, Bereich, Text-Extraktion |
 | `src/html_clip.c` | IFF-FTXT in die Zwischenablage (clipboard.device) |
+| `src/html_print.c`, `src/html_afm.c` | plattformunabhängige Druck-Engine: Layout mit PostScript-Schriftmaßen, Seitenumbruch, PostScript- und PDF-Ausgabe |
+| `src/html_export.c` | `HTMLM_Export` für beide Klassen: Tags, DOS-Ausgabe, Bilder mit Originalpixeln |
 | `src/html_lib.c` | Library-Rahmen (RomTag, Init/Open/Close/Expunge, `HTML_GetClass`), für beide Klassen |
 | `src/htmlttf_class.c` | BOOPSI-Dispatcher von `htmlttf.gadget` (Fonts laden, Bilder als ARGB, Ausgabe) |
 | `src/htmlttf_render.c` | plattformunabhängiger FreeType-Renderer: Glyph-Cache, Compositing, Bildskalierung |

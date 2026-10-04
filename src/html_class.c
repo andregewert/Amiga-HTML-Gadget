@@ -49,6 +49,7 @@
 #include "gadgets/html.h"
 #include "html_core.h"
 #include "html_private.h"
+#include "html_export.h"
 
 #define LAYOUT_STACK  (64 * 1024)
 #define MAXPENS       64
@@ -1693,6 +1694,49 @@ static ULONG gm_goinactive(Class *cl, Object *o, struct gpGoInactive *msg)
 
 /* ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ */
+/* HTMLM_Export                                                        */
+
+/* the pictures are only remapped for the screen: load them again */
+static int export_image(void *user, void *img, struct HPrintImage *pi)
+{
+    return html_export_load_image(((struct HImage *)img)->path, pi);
+}
+
+static void export_image_free(void *user, struct HPrintImage *pi)
+{
+    html_export_free_image(pi);
+}
+
+struct ExportArgs {
+    struct HTMLData *d;
+    Object          *o;
+    struct TagItem  *tags;
+    LONG             result;
+};
+
+static ULONG export_func(APTR arg)
+{
+    struct ExportArgs *a = arg;
+    a->result = html_export(a->d->doc, a->o, a->tags, export_image, export_image_free, a->d);
+    return 0;
+}
+
+/* on the gadget's own stack, as parsing and layout: the layout is
+ * recursive (nested tables), the caller's stack may be small        */
+static LONG export_doc(Class *cl, Object *o, struct hmExport *msg)
+{
+    struct ExportArgs a;
+    a.d = INST_DATA(cl, o);
+    a.o = o;
+    a.tags = msg->hme_Tags;
+    a.result = -1;
+    ObtainSemaphore(&a.d->lock);
+    if (!call_big_stack(export_func, &a)) SetIoErr(ERROR_NO_FREE_STORE);
+    ReleaseSemaphore(&a.d->lock);
+    return a.result;
+}
+
 ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __asm("a1"))
 {
     switch (msg->MethodID) {
@@ -1722,6 +1766,8 @@ ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __as
         return gm_handleinput(cl, o, (struct gpInput *)msg);
     case GM_GOINACTIVE:
         return gm_goinactive(cl, o, (struct gpGoInactive *)msg);
+    case HTMLM_Export:
+        return (ULONG)export_doc(cl, o, (struct hmExport *)msg);
     }
     return dsm(cl, o, msg);
 }

@@ -13,6 +13,11 @@
  * Pages are broken where no text line, picture, rule or checkbox is cut;
  * backgrounds and frames may continue on the next page.
  *
+ * Pictures: the pixels come from the image callback as ARGB. PDF gets an
+ * image object per picture (transparency as soft mask), PostScript the
+ * pixels with colorimage at every place, composed onto white. Tiled
+ * background pictures are not printed.
+ *
  * No C library is used apart from the memory hooks of the core.
  *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
@@ -55,6 +60,9 @@ struct Out {
 
 struct Ctx {
     struct Out      out;
+    const struct HPrintOpts *opt;
+    void          **imgs;           /* PDF: the pictures with an image object */
+    long            nimgs;
     struct HDoc    *doc;
     struct HLayout *lay;
     int             prop;           /* family of proportional text */
@@ -416,6 +424,74 @@ static void draw_check(struct Ctx *c, struct HItem *it)
     }
 }
 
+static void put_hex(struct Out *w, unsigned v)
+{
+    static const char hex[] = "0123456789ABCDEF";
+    putc_(w, hex[v >> 4 & 15]);
+    putc_(w, hex[v & 15]);
+}
+
+/* index of a picture with a PDF image object, -1 if none */
+static long pdf_image(struct Ctx *c, void *img)
+{
+    long k;
+    for (k = 0; k < c->nimgs; k++)
+        if (c->imgs[k] == img) return k;
+    return -1;
+}
+
+/* a picture in the box of the item; FALSE if its pixels are not there */
+static int draw_image(struct Ctx *c, struct HItem *it)
+{
+    const struct HPrintOpts *o = c->opt;
+    struct Out *w = &c->out;
+    struct HPrintImage pi;
+    long k = -1, x, y;
+
+    if (!it->img || !o->image) return 0;
+    if (o->format == HP_PDF && (k = pdf_image(c, it->img)) < 0) return 0;
+    if (o->format != HP_PDF) {
+        pi.w = pi.h = 0; pi.argb = 0; pi.priv = 0;
+        if (!o->image(o->user, it->img, &pi)) return 0;
+        if (pi.w <= 0 || pi.h <= 0 || !pi.argb) {
+            if (o->image_free) o->image_free(o->user, &pi);
+            return 0;
+        }
+    }
+    puts_(w, "q ");
+    put_fix(w, it->w * 75); puts_(w, " 0 0 ");
+    put_fix(w, it->h * 75); putc_(w, ' ');
+    put_xy(w, X(c, it->x), Y(c, it->y + it->h));
+    puts_(w, " cm\n");
+    if (o->format == HP_PDF) {
+        puts_(w, "/Im");
+        put_long(w, k + 1);
+        puts_(w, " Do Q\n");
+        return 1;
+    }
+    /* PostScript: the pixels in hex, composed onto white */
+    puts_(w, "/HProw "); put_long(w, pi.w * 3); puts_(w, " string def\n");
+    put_long(w, pi.w); putc_(w, ' '); put_long(w, pi.h);
+    puts_(w, " 8 ["); put_long(w, pi.w); puts_(w, " 0 0 "); put_long(w, -pi.h);
+    puts_(w, " 0 "); put_long(w, pi.h);
+    puts_(w, "] {currentfile HProw readhexstring pop} false 3 colorimage\n");
+    for (y = 0; y < pi.h; y++) {
+        const unsigned long *p = pi.argb + y * pi.w;
+        for (x = 0; x < pi.w; x++) {
+            unsigned long v = p[x];
+            unsigned a = v >> 24, white = 255 * (255 - a) + 127;
+            put_hex(w, ((v >> 16 & 255) * a + white) / 255);
+            put_hex(w, ((v >> 8 & 255) * a + white) / 255);
+            put_hex(w, ((v & 255) * a + white) / 255);
+            if ((x & 15) == 15) putc_(w, '\n');
+        }
+        putc_(w, '\n');
+    }
+    puts_(w, "Q\n");
+    if (o->image_free) o->image_free(o->user, &pi);
+    return 1;
+}
+
 static void draw_item(struct Ctx *c, long i, const struct HPrintOpts *opt)
 {
     struct HItem *it = &c->lay->items[i];
@@ -432,8 +508,10 @@ static void draw_item(struct Ctx *c, long i, const struct HPrintOpts *opt)
         fill_rect(c, it->x, it->y, it->w, it->h,
                   (it->style & HR_NOSHADE) ? colour(c, it->color) : C_RULE);
         break;
+    case IT_IMAGE:
+        if (!draw_image(c, it)) stroke_rect(c, it->x, it->y, it->w, it->h, C_RULE);
+        break;
     case IT_FRAME:
-    case IT_IMAGE:                  /* pictures follow in a later step */
         stroke_rect(c, it->x, it->y, it->w, it->h, C_RULE);
         break;
     case IT_BULLET:
@@ -448,7 +526,7 @@ static void draw_item(struct Ctx *c, long i, const struct HPrintOpts *opt)
 /*****************************************************************************/
 /* pages                                                                     */
 
-struct Span { long a, b; };
+struct Span { long a, b; int head; };    /* head: a line of a heading */
 
 /* heap sort of the spans by their start */
 static void sift(struct Span *s, long i, long n)
@@ -480,9 +558,16 @@ static int atomic(struct HItem *it)
            it->type == IT_BULLET || it->type == IT_CHECK;
 }
 
+/* a heading line: bold text bigger than normal */
+static int heading(struct HItem *it)
+{
+    return it->type == IT_TEXT && it->font < 7 && it->font % 7 + 1 > 3 && (it->style & HS_BOLD);
+}
+
 /* Page tops in layout pixels; *count gets the number of pages. The
  * spans of the items that must not be cut are merged; a page ends at
- * the start of the span that reaches over its bottom.               */
+ * the start of the span that reaches over its bottom, or before a
+ * heading right above it (a heading stays with its text).           */
 static long *paginate(struct Ctx *c, long height, long *count)
 {
     struct HLayout *lay = c->lay;
@@ -493,12 +578,14 @@ static long *paginate(struct Ctx *c, long height, long *count)
     for (i = 0; i < lay->nitems; i++)
         if (atomic(&lay->items[i]) && lay->items[i].h > 0) {
             s[n].a = lay->items[i].y;
-            s[n++].b = lay->items[i].y + lay->items[i].h;
+            s[n].b = lay->items[i].y + lay->items[i].h;
+            s[n++].head = heading(&lay->items[i]);
         }
     sort_spans(s, n);
     for (i = 0; i < n; i++) {               /* merge overlapping spans */
         if (m && s[i].a < s[m - 1].b) {
             if (s[i].b > s[m - 1].b) s[m - 1].b = s[i].b;
+            s[m - 1].head |= s[i].head;
         } else s[m++] = s[i];
     }
     max = lay->height / (height > 0 ? height : 1) * 2 + m + 2;
@@ -513,6 +600,13 @@ static long *paginate(struct Ctx *c, long height, long *count)
             while (j < m && s[j].b <= bottom) j++;
             /* span j reaches over the bottom: the page ends before it */
             if (j < m && s[j].a < bottom && s[j].a > top) bottom = s[j].a;
+            /* the next page starts with span j: a heading before it (all
+             * its lines) goes along, unless it is all there is on the page */
+            if (j < m && j > i && s[j - 1].head) {
+                long k = j - 1;
+                while (k > i && s[k - 1].head) k--;
+                if (s[k].a > top) bottom = s[k].a;
+            }
         }
         top = bottom;
     } while (top < lay->height && np < max);
@@ -600,7 +694,7 @@ static const char ps_procs[] =
     "/f {fill} bind def /S {stroke} bind def /n {newpath} bind def /W {clip} bind def\n"
     "/w {setlinewidth} bind def /J {setlinecap} bind def /j {setlinejoin} bind def\n"
     "/q {gsave} bind def /Q {grestore} bind def\n"
-    "/rg {setrgbcolor} bind def /RG {setrgbcolor} bind def\n"
+    "/rg {setrgbcolor} bind def /RG {setrgbcolor} bind def /cm {6 array astore concat} bind def\n"
     "/re {4 2 roll moveto 1 index 0 rlineto 0 exch rlineto neg 0 rlineto closepath} bind def\n"
     "/BT {} def /ET {} def /Td {moveto} bind def /Tj {show} bind def\n"
     "/Tf {exch findfont exch scalefont setfont} bind def\n";
@@ -665,14 +759,98 @@ static void pdf_obj(struct Out *w, long *offs, long num)
     puts_(w, " 0 obj\n");
 }
 
+/* the pictures of the layout, each once */
+static void collect_images(struct Ctx *c)
+{
+    struct HLayout *lay = c->lay;
+    long i, n = 0;
+
+    for (i = 0; i < lay->nitems; i++)
+        if (lay->items[i].type == IT_IMAGE && lay->items[i].img) n++;
+    if (!n || !(c->imgs = hsys_alloc(c->out.pool, n * sizeof(void *)))) return;
+    for (i = 0; i < lay->nitems; i++) {
+        struct HItem *it = &lay->items[i];
+        if (it->type == IT_IMAGE && it->img && pdf_image(c, it->img) < 0) c->imgs[c->nimgs++] = it->img;
+    }
+}
+
+/* Image object 'num' (and its soft mask num + 1 if the picture is not
+ * opaque). FALSE if the pixels are not available.                    */
+static int pdf_image_obj(struct Ctx *c, long *offs, long num, void *img)
+{
+    const struct HPrintOpts *o = c->opt;
+    struct Out *w = &c->out;
+    struct HPrintImage pi;
+    long i, n;
+    int alpha = 0;
+
+    pi.w = pi.h = 0; pi.argb = 0; pi.priv = 0;
+    if (!o->image(o->user, img, &pi)) return 0;
+    n = pi.w * pi.h;
+    if (pi.w <= 0 || pi.h <= 0 || !pi.argb) {
+        if (o->image_free) o->image_free(o->user, &pi);
+        return 0;
+    }
+    for (i = 0; i < n && !alpha; i++) alpha = (pi.argb[i] >> 24) != 255;
+
+    pdf_obj(w, offs, num);
+    puts_(w, "<< /Type /XObject /Subtype /Image /Width ");
+    put_long(w, pi.w);
+    puts_(w, " /Height ");
+    put_long(w, pi.h);
+    puts_(w, " /ColorSpace /DeviceRGB /BitsPerComponent 8");
+    if (alpha) {
+        puts_(w, " /SMask ");
+        put_long(w, num + 1);
+        puts_(w, " 0 R");
+    }
+    puts_(w, " /Length ");
+    put_long(w, n * 3);
+    puts_(w, " >>\nstream\n");
+    for (i = 0; i < n; i++) {
+        unsigned long v = pi.argb[i];
+        putc_(w, (char)(v >> 16));
+        putc_(w, (char)(v >> 8));
+        putc_(w, (char)v);
+    }
+    puts_(w, "\nendstream\nendobj\n");
+    if (alpha) {
+        pdf_obj(w, offs, num + 1);
+        puts_(w, "<< /Type /XObject /Subtype /Image /Width ");
+        put_long(w, pi.w);
+        puts_(w, " /Height ");
+        put_long(w, pi.h);
+        puts_(w, " /ColorSpace /DeviceGray /BitsPerComponent 8 /Length ");
+        put_long(w, n);
+        puts_(w, " >>\nstream\n");
+        for (i = 0; i < n; i++) putc_(w, (char)(pi.argb[i] >> 24));
+        puts_(w, "\nendstream\nendobj\n");
+    }
+    if (o->image_free) o->image_free(o->user, &pi);
+    return 1;
+}
+
+/* Objects: 1 catalog, 2 page tree, 3 info, 4 resources, 5-16 fonts,
+ * then two per picture (image, soft mask), then two per page (page,
+ * contents). Numbers of objects not written are free in the xref.    */
 static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, long np, long height,
                       long first, long last)
 {
     struct Out *w = &c->out;
-    long count = last - first + 1, nobj = 4 + 12 + 2 * count, *offs, p, i, xref;
+    long count = last - first + 1, pg, nobj, *offs, p, i, k, xref;
 
+    if (o->image) collect_images(c);
+    pg = 17 + 2 * c->nimgs;
+    nobj = pg - 1 + 2 * count;
     if (!(offs = hsys_alloc(w->pool, (nobj + 1) * sizeof(long)))) { w->oom = 1; return; }
     puts_(w, "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n");
+
+    /* pictures first: those without pixels are taken out of the list */
+    for (i = k = 0; i < c->nimgs; i++) {
+        if (pdf_image_obj(c, offs, 17 + 2 * k, c->imgs[i])) c->imgs[k++] = c->imgs[i];
+        if (w->oom) return;
+    }
+    c->nimgs = k;
 
     pdf_obj(w, offs, 1);
     puts_(w, "<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
@@ -681,7 +859,7 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
     put_long(w, count);
     puts_(w, " /Kids [");
     for (i = 0; i < count; i++) {
-        put_long(w, 17 + 2 * i);
+        put_long(w, pg + 2 * i);
         puts_(w, " 0 R ");
     }
     puts_(w, "] >>\nendobj\n");
@@ -703,7 +881,19 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
         put_long(w, 5 + i);
         puts_(w, " 0 R");
     }
-    puts_(w, " >> >>\nendobj\n");
+    puts_(w, " >>");
+    if (c->nimgs) {
+        puts_(w, " /XObject <<");
+        for (i = 0; i < c->nimgs; i++) {
+            puts_(w, " /Im");
+            put_long(w, i + 1);
+            putc_(w, ' ');
+            put_long(w, 17 + 2 * i);
+            puts_(w, " 0 R");
+        }
+        puts_(w, " >>");
+    }
+    puts_(w, " >>\nendobj\n");
     for (i = 0; i < 12; i++) {
         pdf_obj(w, offs, 5 + i);
         puts_(w, "<< /Type /Font /Subtype /Type1 /BaseFont /");
@@ -712,7 +902,7 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
     }
 
     for (p = first; p <= last; p++) {
-        long k = p - first, num = 17 + 2 * k;
+        long num = pg + 2 * (p - first);
         if (o->progress && o->progress(o->user, p, np)) { w->oom = 2; return; }
         pdf_obj(w, offs, num);
         puts_(w, "<< /Type /Page /Parent 2 0 R /Resources 4 0 R /MediaBox [0 0 ");
@@ -746,11 +936,11 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
     for (i = 1; i <= nobj; i++) {
         char d[11];
         long v = offs[i];
-        int k;
-        for (k = 9; k >= 0; k--) { d[k] = (char)('0' + v % 10); v /= 10; }
+        int j;
+        for (j = 9; j >= 0; j--) { d[j] = (char)('0' + v % 10); v /= 10; }
         d[10] = 0;
-        puts_(w, d);
-        puts_(w, " 00000 n \n");
+        puts_(w, offs[i] ? d : "0000000000");
+        puts_(w, offs[i] ? " 00000 n \n" : " 00001 f \n");
     }
     puts_(w, "trailer\n<< /Size ");
     put_long(w, nobj + 1);
@@ -772,6 +962,7 @@ long html_print(struct HDoc *doc, const struct HPrintOpts *o, long *pages)
     for (i = 0; i < (long)sizeof(c); i++) ((char *)&c)[i] = 0;
     for (i = 0; i < (long)sizeof(env); i++) ((char *)&env)[i] = 0;
     c.out.o = o;
+    c.opt = o;
     c.doc = doc;
     c.prop = o->serif ? FAM_SERIF : FAM_SANS;
     if (!(c.out.pool = hsys_pool_create())) return HP_ERROR;

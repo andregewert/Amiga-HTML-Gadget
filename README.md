@@ -31,6 +31,7 @@
 | Tables | automatic column widths, `colspan`, `rowspan`, `border`, `cellpadding`, `cellspacing`, `width` (px/%), `align`, `valign`, `bgcolor`, `nowrap`, `caption`, `th`, nested tables |
 | Backgrounds | `bgcolor` on `body`, `table`, `tr`, `td`, `th`; tiled background pictures on `body` (scrolls with the page), `table`, `td`, `th` |
 | Pictures | `img` (and `input type=image`) in every format a **datatype** exists for; GIF transparency, PNG alpha (htmlttf.gadget); scaled with `width`/`height`; `alt` text for missing pictures; `align=left/right` floats the picture and text flows around it (`hspace`, `vspace`, `br clear=left/right/all`) |
+| Printing | `HTMLM_Export` (V1.2) writes the document as **PostScript or PDF** for a paper size: standard PostScript fonts (Helvetica/Times, Courier), text stays text, pictures with original pixels and transparency, page numbers, page breaks between lines; to a file, `PRT:` or a PostScript handler |
 | Selection | drag with the mouse (auto-scrolls at the edges), double click selects a word; copy to the clipboard as IFF FTXT |
 | Character set | Latin-1; UTF-8 documents are detected and converted. All HTML 4 Latin-1 entities, `&#nnn;`, `&#xhh;` |
 | Forms | `input` is drawn as a placeholder box (not usable); checkboxes and radio buttons show their state (`checked`) with anti-aliased graphics in htmlttf.gadget, sized to the font, read only (e.g. Markdown task lists) |
@@ -94,6 +95,29 @@ struct TagItem scroller2html[] = { { SCROLLER_Top, HTML_Top }, { TAG_DONE } };
 To copy selected text, call `SetGadgetAttrs(html, win, NULL, HTML_Copy, TRUE, TAG_DONE)`
 from a menu item (Amiga-C).
 
+### Stack
+
+The gadget swaps to its own 64 KB stack for the work that needs much of it: parsing, layout,
+the FreeType output of htmlttf.gadget and `HTMLM_Export` (Intuition may call the gadget on the
+input.device task). Other work runs on the stack of the **calling application**: setting
+`HTML_File` or `HTML_Text` loads the pictures through datatypes.library and opens fonts with
+diskfont.library, and window.class/layout.gadget need stack as well. Give the application
+**at least 16 KB, better 32 KB**; too little stack typically crashes while a document or its
+pictures are loaded (software error 80000003/80000004).
+
+Started from the Workbench a program gets the stack of its icon, a program without its own
+icon only 4 KB; in the Shell the `Stack` command sets it. The application can secure its stack
+in the code, independent of how it is started:
+
+```c
+/* libnix (bebbo's amiga-gcc, -noixemul), link with -Wl,-u,___stkinit:
+ * the startup code swaps to a stack of this size if the current one is smaller */
+unsigned long __stack = 32768;
+```
+
+SAS/C honours `long __stack = 32768;` as well; with any compiler the GUI code can be called
+through `exec.library/StackSwap()`, as the gadget does itself. HTMLDemo uses the libnix way.
+
 ### Attributes
 
 | Tag | Type | Use | Meaning |
@@ -121,6 +145,7 @@ from a menu item (Amiga-C).
 | `HTML_SelectAll` / `HTML_ClearSelection` | BOOL | S | select all / clear the selection |
 | `HTML_HasSelection` | BOOL | G | is text selected? |
 | `HTML_SelectedText` | STRPTR | G | selected text (Latin-1), owned by the gadget |
+| `HTMLM_Export` | method | | writes the document as PostScript or PDF, `HTMLEX_…` tags (V1.2) |
 | `HTMLTTF_FontDir` | STRPTR | I | directory of the `.ttf` files (htmlttf.gadget) |
 | `HTMLTTF_FontSet` | STRPTR | I | `"Vera"`, `"DejaVu"` or `"Noto"` (htmlttf.gadget) |
 | `HTMLTTF_Size` | LONG | I | pixel size of body text (htmlttf.gadget) |
@@ -167,6 +192,8 @@ of its size: copy `NotoSans-Regular/-Bold/-Italic/-BoldItalic.ttf` and
 | `src/htmlttf_class.c` | BOOPSI dispatcher of htmlttf.gadget: fonts, ARGB pictures, output |
 | `src/htmlttf_render.c` | platform independent FreeType renderer: glyph cache, compositing, scaling |
 | `src/html_clip.c` | clipboard writer (IFF FTXT) |
+| `src/html_print.c`, `src/html_afm.c` | platform independent print engine: layout with PostScript font metrics, page breaks, PostScript and PDF output |
+| `src/html_export.c` | `HTMLM_Export` for both classes: tags, DOS output, pictures with original pixels |
 | `src/html_lib.c` | library frame (RomTag, Init/Open/Close/Expunge, `*_GetClass`) for both classes |
 | `ttf/` | FreeType configuration, C library shim and system interface |
 | `demo/` | HTMLDemo and example pages |

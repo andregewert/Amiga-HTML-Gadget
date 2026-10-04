@@ -1,6 +1,7 @@
 TABLE OF CONTENTS
 
 htmlttf.gadget/--datasheet--
+htmlttf.gadget/HTMLM_Export
 htmlttf.gadget/HTML_Anchor
 htmlttf.gadget/HTML_AutoAnchors
 htmlttf.gadget/HTML_BaseDir
@@ -59,7 +60,8 @@ htmlttf.gadget/HTMLTTF_Size
 
    METHODS
     OM_NEW, OM_SET, OM_UPDATE, OM_GET, OM_DISPOSE, GM_DOMAIN, GM_LAYOUT,
-    GM_RENDER, GM_HITTEST, GM_GOACTIVE, GM_HANDLEINPUT, GM_GOINACTIVE.
+    GM_RENDER, GM_HITTEST, GM_GOACTIVE, GM_HANDLEINPUT, GM_GOINACTIVE,
+    HTMLM_Export (V1.2).
     All other methods are passed to the superclass.
 
    ATTRIBUTES
@@ -84,6 +86,36 @@ htmlttf.gadget/HTMLTTF_Size
     input is detected and converted to Latin-1. Not supported: CSS,
     JavaScript, frames, floating tables and images.
 
+   STACK
+    The gadget swaps to its own stack of 64 KB for the work that needs much
+    of it: parsing, layout, the FreeType output of htmlttf.gadget and
+    HTMLM_Export. Intuition may call the gadget on the input.device task,
+    whose stack is small.
+
+    Other work runs on the stack of the calling task: setting HTML_File or
+    HTML_Text (OM_NEW, OM_SET) loads the pictures through datatypes.library
+    (picture.datatype and the format datatypes) and opens the fonts with
+    diskfont.library; window.class and layout.gadget add their own needs.
+    The application should therefore run with at least 16 KB of stack,
+    32 KB are recommended. Too little stack typically ends in a crash
+    while the document or its pictures are loaded (e.g. software error
+    80000003 or 80000004).
+
+    Started from the Workbench, a program gets the stack of its icon; a
+    program without its own icon (default tool icon) gets only 4 KB. From
+    the Shell the "Stack" command sets it. The application can make sure of
+    its stack in the code, independent of how it is started:
+
+      - libnix (bebbo's amiga-gcc, -noixemul): define
+
+            unsigned long __stack = 32768;
+
+        and link with -Wl,-u,___stkinit; the startup code then swaps to a
+        stack of this size if the current one is smaller (HTMLDemo does so).
+      - SAS/C: "long __stack = 32768;" is honoured by the startup code.
+      - Any compiler: allocate a stack and call the GUI code through
+        exec.library/StackSwap(), as the gadget does itself.
+
    USAGE
     Link clicks are reported with IDCMP_GADGETUP (WMHI_GADGETUP), Code =
     index of the link; read HTML_LinkURL for the target. Scrollers are
@@ -102,6 +134,61 @@ htmlttf.gadget/HTMLTTF_Size
 
    SEE ALSO
     gadgets/html.h, gadgets/htmlttf.h, Demo/HTMLDemo.c
+htmlttf.gadget/HTMLM_Export                        htmlttf.gadget/HTMLM_Export
+
+   NAME
+    HTMLM_Export -- write the document as PostScript or PDF (V1.2)
+
+   SYNOPSIS
+    LONG pages = DoMethod(obj, HTMLM_Export, struct TagItem *tags);
+
+   FUNCTION
+    Lays the document out again for the paper and writes it to a DOS file
+    handle: PostScript (level 1, the page size is set with setpagedevice
+    where available) or PDF 1.4. The standard PostScript fonts are used
+    (Helvetica or Times for text, Courier for <pre>, <tt> etc.), so text
+    stays text and no fonts are embedded; the characters are ISO-8859-1.
+    Pictures are included with their original pixels (PDF: with their
+    transparency), tiled background pictures are not printed. Pages are
+    broken where no text line, picture or rule is cut, a heading stays
+    with the text after it.
+
+    Call it with DoMethod() from the application's process, not with
+    DoGadgetMethod(). The window may stay open meanwhile; the gadget is
+    locked until the method returns.
+
+   TAGS
+    HTMLEX_File (BPTR) - the output, opened with MODE_NEWFILE; a file,
+        PRT: or a PostScript handler. Required.
+    HTMLEX_Format (ULONG) - HTMLEXF_PS (default) or HTMLEXF_PDF.
+    HTMLEX_PaperWidth, HTMLEX_PaperHeight (LONG) - paper size in points
+        (1/72 inch), default A4 (595 x 842).
+    HTMLEX_MarginLeft, HTMLEX_MarginTop, HTMLEX_MarginRight,
+    HTMLEX_MarginBottom (LONG) - margins in points, default 57 (20 mm).
+    HTMLEX_FontSize (LONG) - size of normal text in 1/10 points, default
+        100 (10 pt); headings and <font size> scale with it.
+    HTMLEX_Serif (BOOL) - text in Times instead of Helvetica.
+    HTMLEX_Backgrounds (BOOL) - print background colours (default TRUE).
+    HTMLEX_Footer (STRPTR) - centred text in the bottom margin, %p is
+        replaced with the page number, %n with the number of pages, e.g.
+        "%p / %n". Default: none.
+    HTMLEX_Title (STRPTR) - title for the PDF document information and
+        the PostScript header, default the document's <title>.
+    HTMLEX_FirstPage, HTMLEX_LastPage (LONG) - range of pages to write,
+        counted from 1; default all.
+    HTMLEX_ProgressHook (struct Hook *) - called before every page with
+        the gadget as object and a struct HTMLExportProgress (Page, Pages)
+        as message; return non-zero to stop.
+    HTMLEX_Pages (LONG *) - receives the number of pages of the document.
+
+   RESULT
+    pages - the number of pages written, 0 if the page range was empty,
+        -1 on an error (IoErr() tells: write error, ERROR_NO_FREE_STORE,
+        ERROR_REQUIRED_ARG_MISSING without HTMLEX_File), -2 if the
+        progress hook stopped it.
+
+   SEE ALSO
+    gadgets/html.h, Demo/HTMLDemo.c
 htmlttf.gadget/HTML_Anchor                          htmlttf.gadget/HTML_Anchor
 
    NAME

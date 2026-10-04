@@ -30,6 +30,50 @@ void *hsys_alloc(void *pool, long size)
 }
 void hsys_free(void *pool, void *mem, long size) { (void)pool; (void)mem; (void)size; }
 
+/* every <img src> gets a test picture: a checkered ball, transparent
+ * around it (as the Boing ball), in the size of width/height or 96x64 */
+static void fake_images(struct HDoc *doc)
+{
+    struct HNode *n = doc->root;
+    while (n) {
+        if (n->tag == T_IMG && html_attr(n, "src") && !html_attr(n, "noload")) {
+            const char *w = html_attr(n, "width"), *h = html_attr(n, "height");
+            n->img = n;
+            n->iw = w ? atol(w) : 96;
+            n->ih = h ? atol(h) : 64;
+        }
+        if (n->first) n = n->first;
+        else { while (n && !n->next) n = n->parent; if (n) n = n->next; }
+    }
+}
+
+static int image(void *user, void *img, struct HPrintImage *pi)
+{
+    struct HNode *n = img;
+    unsigned long *p;
+    long x, y, w = n->iw, h = n->ih;
+    (void)user;
+    if (w <= 0 || h <= 0 || !(p = malloc(w * h * sizeof(*p)))) return 0;
+    for (y = 0; y < h; y++)
+        for (x = 0; x < w; x++) {
+            long dx = 2 * x - w, dy = 2 * y - h, r = w < h ? w : h;
+            int in = dx * dx + dy * dy <= r * r;
+            int check = ((x * 8 / w) + (y * 6 / h)) & 1;
+            p[y * w + x] = in ? (check ? 0xFFE00000UL : 0xFFFFFFFFUL) : 0x00000000UL;
+        }
+    pi->w = w;
+    pi->h = h;
+    pi->argb = p;
+    pi->priv = p;
+    return 1;
+}
+
+static void image_free(void *user, struct HPrintImage *pi)
+{
+    (void)user;
+    free(pi->priv);
+}
+
 static void out(void *user, const char *data, long len)
 {
     fwrite(data, 1, len, (FILE *)user);
@@ -52,6 +96,7 @@ int main(int argc, char **argv)
     fclose(f);
     if (!(doc = html_parse(buf, len))) { fprintf(stderr, "parse failed\n"); return 1; }
     if (!(w = fopen(argv[2], "wb"))) return 1;
+    fake_images(doc);
 
     memset(&o, 0, sizeof(o));
     n = strlen(argv[2]);
@@ -69,6 +114,8 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "nobg")) o.backgrounds = 0;
     }
     o.write = out;
+    o.image = image;
+    o.image_free = image_free;
     o.user = w;
     n = html_print(doc, &o, &pages);
     fclose(w);
