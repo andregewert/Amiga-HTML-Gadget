@@ -119,6 +119,17 @@
  * "" if the text was set with HTML_Text.                            (G)    */
 #define HTML_BaseDir        (HTML_Dummy + 20)    /* STRPTR */
 
+/* TRUE: pictures wider than the space they are in are scaled down to
+ * that width, keeping their proportions, like max-width: 100% in CSS -
+ * handy for Markdown documents with big screenshots. The space is the
+ * text width of the gadget (its width minus HTML_Margin on both sides)
+ * or of the list, quote or float the picture is in; pictures in tables
+ * keep their size. Applies to width/height attributes as well. Printing
+ * and export (HTMLM_Export, HTMLM_PrintBegin) use the setting too, with
+ * the text width of the page. FALSE (the default) shows pictures in
+ * their size like a browser does. (V1.2)                            (ISG)  */
+#define HTML_FitImages      (HTML_Dummy + 30)    /* BOOL */
+
 /*****************************************************************************/
 /* Printing and export (V1.2)                                                */
 

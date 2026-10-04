@@ -960,6 +960,7 @@ long html_print(struct HDoc *doc, const struct HPrintOpts *o, long *pages)
     if (pages) *pages = 0;
     for (i = 0; i < (long)sizeof(c); i++) ((char *)&c)[i] = 0;
     for (i = 0; i < (long)sizeof(env); i++) ((char *)&env)[i] = 0;
+    env.fit_images = o->fit_images;
     c.out.o = o;
     c.opt = o;
     c.doc = doc;

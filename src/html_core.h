@@ -148,6 +148,7 @@ struct HEnv {
     short font_baseline[HF_NUM];
     long  margin;
     int   system_colors;
+    int   fit_images;           /* pictures wider than their box are scaled down to it */
     unsigned long generation;   /* change when fonts change (never 0) */
 };
 

@@ -79,6 +79,7 @@ struct HImage {
     LONG           maskw, maskh;
     BOOL           ownmaskvec;       /* ownmask is from AllocVec() (scale_masked_planar) */
     BOOL           tile;             /* background picture (tiled) */
+    struct HImage *fit;              /* copy scaled to the last box size (own bitmaps only) */
 };
 
 struct PenEntry {
@@ -624,6 +625,8 @@ static void check_span(void *ctx, long x0, long x1, long y, unsigned long rgb, u
 }
 
 /* draws the document into rp; (ox,oy) is where the visible area starts */
+static struct HImage *fit_image(struct HImage *im, LONG w, LONG h);
+
 static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastPort *rp, LONG ox, LONG oy)
 {
     struct HLayout *lay = d->lay;
@@ -711,6 +714,8 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
             break;
         case IT_IMAGE: {
             struct HImage *im = it->img;
+            /* a box of another size (HTML_FitImages, width in %) */
+            if (im && im->bm && !im->tile && (it->w != im->w || it->h != im->h)) im = fit_image(im, it->w, it->h);
             if (im && im->bm && im->scr == gi->gi_Screen) {
                 LONG sx = 0, sy = 0, bx = x, by = y;
                 LONG w = it->w < im->w ? it->w : im->w, h = it->h < im->h ? it->h : im->h;
@@ -852,6 +857,7 @@ static void free_images(struct HImage *im)
 {
     while (im) {
         struct HImage *next = im->next;
+        if (im->fit) free_images(im->fit);
         if (im->ownbm) { WaitBlit(); FreeBitMap(im->ownbm); }
         if (im->ownmask) {
             if (im->ownmaskvec) FreeVec(im->ownmask);
@@ -1062,6 +1068,35 @@ static void scale_image(struct HImage *im, LONG nw, LONG nh)
     im->bm = dst;
     im->w = nw;
     im->h = nh;
+}
+
+/* the picture scaled to w x h for a box of another size, made from the
+ * picture as loaded and kept until the size changes; the picture itself
+ * if that fails                                                          */
+static struct HImage *fit_image(struct HImage *im, LONG w, LONG h)
+{
+    struct HImage *f = im->fit;
+
+    if (f && f->w == w && f->h == h) return f;
+    if (f) {
+        free_images(f);
+        im->fit = NULL;
+    }
+    if (w < 1 || h < 1 || w > 4000 || h > 4000 || !(f = AllocVec(sizeof(*f), MEMF_ANY))) return im;
+    *f = *im;
+    f->next = NULL;
+    f->dto = NULL;                  /* belongs to im */
+    f->ownbm = NULL;
+    f->ownmask = NULL;
+    f->ownmaskvec = FALSE;
+    f->fit = NULL;
+    scale_image(f, w, h);
+    if (!f->ownbm) {                /* not scaled */
+        free_images(f);
+        return im;
+    }
+    im->fit = f;
+    return f;
 }
 
 /* small background tiles are copied into a bigger bitmap once, so that
@@ -1423,6 +1458,11 @@ static ULONG set_attrs(Class *cl, Object *o, struct opSet *msg)
         case HTML_AutoAnchors:
             d->autoanchors = data ? TRUE : FALSE;
             break;
+        case HTML_FitImages:
+            d->env.fit_images = data ? TRUE : FALSE;
+            d->laywidth = -1;
+            redo = TRUE;
+            break;
         case HTML_LoadImages:
             d->loadimages = data ? TRUE : FALSE;
             break;
@@ -1488,6 +1528,7 @@ static ULONG get_attr(Class *cl, Object *o, struct opGet *msg)
     case HTML_Margin:       *store = d->margin; return 1;
     case HTML_LineHeight:   *store = d->env.font_height[HF_INDEX(0, 3)] + 1; return 1;
     case HTML_AutoAnchors:  *store = d->autoanchors; return 1;
+    case HTML_FitImages:   *store = d->env.fit_images; return 1;
     case HTML_LoadImages:   *store = d->loadimages; return 1;
     case HTML_ImagesTotal:  *store = d->imgtotal; return 1;
     case HTML_ImagesLoaded: *store = d->imgloaded; return 1;
@@ -1578,6 +1619,7 @@ static Object *om_new(Class *cl, Object *o, struct opSet *msg)
     d->env.user = d;
     d->env.text_width = text_width_cb;
     d->env.margin = d->margin;
+    d->env.fit_images = GetTagData(HTML_FitImages, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
     d->env.system_colors = d->syscolors;
     for (i = 0; i < HF_NUM; i++) d->use[i] = GfxBase->DefaultFont;
     open_fonts(d, 1UL << HF_INDEX(0, 3));
@@ -1827,7 +1869,7 @@ struct ExportArgs {
 static ULONG export_func(APTR arg)
 {
     struct ExportArgs *a = arg;
-    a->result = html_export(a->d->doc, a->o, a->tags, export_image, export_image_free, a->d);
+    a->result = html_export(a->d->doc, a->o, a->tags, a->d->env.fit_images, export_image, export_image_free, a->d);
     return 0;
 }
 

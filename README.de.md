@@ -133,6 +133,7 @@ nutzt den Weg über libnix.
 | `HTML_Font` / `HTML_FixedFont` | struct TextAttr * | I | Grundschrift proportional / fest (Default: Screen-Font / `courier.font` in passender Größe, sonst System-Font) |
 | `HTML_SystemColors` | BOOL | ISG | Dokumente ohne eigene Farben in Screen-Farben statt Schwarz auf Weiß |
 | `HTML_Margin` | LONG | ISG | Seitenrand (Default 8) |
+| `HTML_FitImages` | BOOL | ISG | Bilder, die breiter als der Text sind, auf seine Breite verkleinern wie `max-width: 100%`; auch beim Drucken (Default FALSE, V1.2) |
 | `HTML_LineHeight` | LONG | G | Zeilenhöhe, z. B. als Scroll-Schritt |
 | `HTML_AutoAnchors` | BOOL | ISG | `#anker`-Links selbst behandeln (Default TRUE) |
 | `HTML_Frame` | BOOL | I | vertiefter Rahmen (Default TRUE) |

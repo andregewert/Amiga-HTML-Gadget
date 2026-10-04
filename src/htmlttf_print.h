@@ -22,6 +22,7 @@ struct TPrintOpts {
     long        margin[4];          /* left, top, right, bottom in points */
     long        font_size;          /* normal text in 1/10 points */
     int         backgrounds;        /* print background colours */
+    int         fit_images;         /* pictures not wider than the text (HEnv.fit_images) */
     const char *footer;             /* "%p / %n" or NULL */
 };
 

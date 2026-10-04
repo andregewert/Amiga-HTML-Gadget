@@ -11,6 +11,7 @@ html.gadget/HTML_BaseDir
 html.gadget/HTML_ClearSelection
 html.gadget/HTML_Copy
 html.gadget/HTML_File
+html.gadget/HTML_FitImages
 html.gadget/HTML_FixedFont
 html.gadget/HTML_Font
 html.gadget/HTML_Frame
@@ -63,7 +64,7 @@ html.gadget/HTML_Visible
     HTML_Text, HTML_File, HTML_Title, HTML_Top, HTML_Total, HTML_Visible,
     HTML_Left, HTML_TotalWidth, HTML_VisibleWidth, HTML_LinkURL, HTML_Anchor,
     HTML_SystemColors, HTML_Margin, HTML_LineHeight, HTML_AutoAnchors,
-    HTML_Frame, HTML_NumLinks, HTML_BaseDir, HTML_LoadImages,
+    HTML_FitImages, HTML_Frame, HTML_NumLinks, HTML_BaseDir, HTML_LoadImages,
     HTML_ImagesTotal, HTML_ImagesLoaded, HTML_ImageError, HTML_Copy,
     HTML_SelectAll, HTML_ClearSelection, HTML_HasSelection,
     HTML_SelectedText
@@ -333,6 +334,31 @@ html.gadget/HTML_Visible
    FUNCTION
     Loads and displays the file. Pictures are loaded relative to its
     directory, see HTML_BaseDir. The scroll position is reset to the top.
+html.gadget/HTML_FitImages                          html.gadget/HTML_FitImages
+
+   NAME
+    HTML_FitImages -- (BOOL) scale wide pictures down to the text width (V1.2)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET)
+
+   FUNCTION
+    If TRUE, a picture wider than the space it is in is scaled down to that
+    width, keeping its proportions - like "max-width: 100%" in CSS. The space
+    is the text width of the gadget (its width minus HTML_Margin on both
+    sides), or of the list, quote or float the picture is in. Pictures in
+    tables keep their size, the table is measured with them. The setting also
+    applies to pictures with width/height attributes, and to printing and
+    export (HTMLM_Export, HTMLM_PrintBegin), with the text width of the page.
+
+    Default is FALSE: pictures are shown in their size, as a browser does.
+    TRUE suits Markdown documents, which often contain big screenshots
+    without a size. When the gadget gets narrower or wider, the pictures are
+    scaled again from the loaded picture; the scaled copy is kept until the
+    size changes.
+
+   SEE ALSO
+    HTML_Margin
 html.gadget/HTML_FixedFont                          html.gadget/HTML_FixedFont
 
    NAME

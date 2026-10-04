@@ -80,6 +80,7 @@ struct TPrint *tp_begin(struct HDoc *doc, const struct TRender *screen, const st
     }
     p->env.user = p;
     p->env.text_width = text_width_cb;
+    p->env.fit_images = o->fit_images;
     p->env.generation = 1;
 
     width = (o->paper_w - o->margin[0] - o->margin[2]) * 4 / 3;

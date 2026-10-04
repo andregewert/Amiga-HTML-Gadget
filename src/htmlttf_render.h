@@ -48,6 +48,8 @@ struct TImage {
     tr_u32        *pix;
     long           w, h;
     int            opaque;
+    tr_u32        *fpix;                /* copy scaled to the last box size, or NULL */
+    long           fw, fh;
 };
 
 struct TRender {

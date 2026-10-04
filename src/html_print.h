@@ -36,6 +36,7 @@ struct HPrintOpts {
     long        font_size;          /* normal text size in 1/10 points (100 = 10 pt) */
     int         serif;              /* proportional text in Times, else Helvetica */
     int         backgrounds;        /* print background colours */
+    int         fit_images;         /* pictures not wider than the text (HEnv.fit_images) */
     const char *footer;             /* page numbers, "%p" page, "%n" pages; NULL: none */
     const char *title;              /* document title (PDF info, PS %%Title) or NULL */
     long        first, last;        /* pages to write, from 1; 0 = from the first / to the last */

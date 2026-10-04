@@ -246,10 +246,28 @@ static void s_glyph(struct TStrip *s, struct TGlyph *g, long x, long y, unsigned
     }
 }
 
-static void s_image(struct TStrip *s, struct TImage *im, long x, long y, long bw, long bh)
+static void s_image(struct TStrip *s, struct TImage *pic, long x, long y, long bw, long bh)
 {
-    long ix, iy, x0 = x - s->dx, y0 = y - s->dy;
-    long sx = 0, sy = 0, w = bw < im->w ? bw : im->w, h = bh < im->h ? bh : im->h;
+    struct TImage view = *pic, *im = &view;
+    long ix, iy, x0 = x - s->dx, y0 = y - s->dy, sx = 0, sy = 0, w, h;
+
+    /* a box of another size (HEnv.fit_images, width in %): a copy scaled
+     * to it, kept until the size changes                                 */
+    if ((bw != pic->w || bh != pic->h) && bw > 0 && bh > 0 && bw <= 4000 && bh <= 4000) {
+        if (!pic->fpix || pic->fw != bw || pic->fh != bh) {
+            if (pic->fpix) tr_free(pic->fpix);
+            pic->fpix = tr_scale_argb(pic->pix, pic->w, pic->h, bw, bh);
+            pic->fw = bw;
+            pic->fh = bh;
+        }
+        if (pic->fpix) {
+            view.pix = pic->fpix;
+            view.w = bw;
+            view.h = bh;
+        }
+    }
+    w = bw < im->w ? bw : im->w;
+    h = bh < im->h ? bh : im->h;
 
     if (x0 < 0) { sx = -x0; w -= sx; x0 = 0; }
     if (y0 < 0) { sy = -y0; h -= sy; y0 = 0; }

@@ -82,6 +82,9 @@ History
    pixels of the sheet, in strips, e.g. for printer.device with
    DRPA_SourceHook; htmlttf.gadget in the printer's resolution,
    html.gadget with its bitmap fonts
+ - new attribute HTML_FitImages: pictures wider than the text are
+   scaled down to its width (like max-width: 100% in CSS), also when
+   printing; off by default, handy for Markdown with big screenshots
  - html.gadget: scaled pictures with transparency (GIF) are drawn
    correctly on planar screens (AGA)
  - HTMLDemo: export to RAM:HTMLDemo.ps / .pdf from the Project menu,
@@ -136,6 +139,10 @@ Versionsgeschichte
    Pixel des Blatts, in Streifen, z. B. für printer.device mit
    DRPA_SourceHook; htmlttf.gadget in der Druckerauflösung, html.gadget
    mit seinen Bitmap-Schriften
+ - neues Attribut HTML_FitImages: Bilder, die breiter als der Text
+   sind, werden auf seine Breite verkleinert (wie max-width: 100% in
+   CSS), auch beim Drucken; abgeschaltet, praktisch für Markdown mit
+   großen Screenshots
  - html.gadget: skalierte Bilder mit Transparenz (GIF) werden auf
    planaren Bildschirmen (AGA) richtig gezeichnet
  - HTMLDemo: Export nach RAM:HTMLDemo.ps / .pdf im Menü Projekt,

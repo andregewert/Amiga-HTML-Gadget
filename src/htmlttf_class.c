@@ -1091,6 +1091,11 @@ static ULONG set_attrs(Class *cl, Object *o, struct opSet *msg)
         case HTML_AutoAnchors:
             d->autoanchors = data ? TRUE : FALSE;
             break;
+        case HTML_FitImages:
+            d->env.fit_images = data ? TRUE : FALSE;
+            d->laywidth = -1;
+            redo = TRUE;
+            break;
         case HTML_LoadImages:
             d->loadimages = data ? TRUE : FALSE;
             break;
@@ -1154,6 +1159,7 @@ static ULONG get_attr(Class *cl, Object *o, struct opGet *msg)
     case HTML_Margin:        *store = d->margin; return 1;
     case HTML_LineHeight:    *store = d->env.font_height[HF_INDEX(0, 3)] + 1; return 1;
     case HTML_AutoAnchors:   *store = d->autoanchors; return 1;
+    case HTML_FitImages:    *store = d->env.fit_images; return 1;
     case HTML_LoadImages:    *store = d->loadimages; return 1;
     case HTML_ImagesTotal:   *store = d->imgtotal; return 1;
     case HTML_ImagesLoaded:  *store = d->imgloaded; return 1;
@@ -1224,6 +1230,7 @@ static Object *om_new(Class *cl, Object *o, struct opSet *msg)
     d->env.user = d;
     d->env.text_width = text_width_cb;
     d->env.margin = d->margin;
+    d->env.fit_images = GetTagData(HTML_FitImages, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
     d->env.system_colors = d->syscolors;
     ObtainSemaphore(&d->lock);
     call_big_stack(d->stack, metrics_func, d);
@@ -1498,7 +1505,7 @@ struct ExportArgs {
 static ULONG export_func(APTR arg)
 {
     struct ExportArgs *a = arg;
-    a->result = html_export(a->d->doc, a->o, a->tags, export_image, NULL, a->d);
+    a->result = html_export(a->d->doc, a->o, a->tags, a->d->env.fit_images, export_image, NULL, a->d);
     return 0;
 }
 
@@ -1567,6 +1574,7 @@ static LONG print_begin(Class *cl, Object *o, struct hmPrintBegin *msg)
     a.opt.margin[3] = GetTagData(HTMLEX_MarginBottom, 57, tags);
     a.opt.font_size = GetTagData(HTMLEX_FontSize, 100, tags);
     a.opt.backgrounds = GetTagData(HTMLEX_Backgrounds, TRUE, tags) != 0;
+    a.opt.fit_images = a.d->env.fit_images;
     a.opt.footer = (const char *)GetTagData(HTMLEX_Footer, 0, tags);
 
     ObtainSemaphore(&a.d->lock);

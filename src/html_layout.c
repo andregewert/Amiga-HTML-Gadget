@@ -945,6 +945,13 @@ static void image(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
         if (w <= 0 && h <= 0) { w = n->iw; h = n->ih; }
         else if (w <= 0) w = n->iw * h / n->ih;
         else if (h <= 0) h = n->ih * w / n->iw;
+        /* not wider than the box, keeping the proportions; tables are
+         * measured with the natural size, so cells keep their pictures  */
+        if (L->env->fit_images && !L->measure && b->width > 0 && w > b->width) {
+            h = h * b->width / w;
+            if (h < 1) h = 1;
+            w = b->width;
+        }
         if (side) add_float(L, b, st, n, side, w, h, 0, n->img);
         else add_box(L, b, st, w, h, 0, 0, n->img);
         return;

@@ -86,7 +86,7 @@ static void image_free_cb(void *user, struct HPrintImage *pi)
     if (x->imgfree) x->imgfree(x->imguser, pi);
 }
 
-LONG html_export(struct HDoc *doc, Object *gadget, struct TagItem *tags,
+LONG html_export(struct HDoc *doc, Object *gadget, struct TagItem *tags, int fit_images,
                  html_img_fn img, html_free_fn imgfree, void *imguser)
 {
     struct HPrintOpts o;
@@ -120,6 +120,7 @@ LONG html_export(struct HDoc *doc, Object *gadget, struct TagItem *tags,
     o.font_size = GetTagData(HTMLEX_FontSize, 100, tags);
     o.serif = GetTagData(HTMLEX_Serif, FALSE, tags) != 0;
     o.backgrounds = GetTagData(HTMLEX_Backgrounds, TRUE, tags) != 0;
+    o.fit_images = fit_images;
     o.footer = (const char *)GetTagData(HTMLEX_Footer, 0, tags);
     o.title = (const char *)GetTagData(HTMLEX_Title, (ULONG)doc->title, tags);
     o.first = GetTagData(HTMLEX_FirstPage, 0, tags);

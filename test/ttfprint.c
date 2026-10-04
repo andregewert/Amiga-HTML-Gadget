@@ -132,6 +132,7 @@ int main(int argc, char **argv)
     o.margin[0] = o.margin[1] = o.margin[2] = o.margin[3] = 57;
     o.font_size = 100;
     o.backgrounds = 1;
+    o.fit_images = argc > 6 && !strcmp(argv[6], "fit");     /* HTML_FitImages */
     o.footer = "%p / %n";
     if (!(tp = tp_begin(doc, &R, &o, &pages, &pw, &ph))) { puts("tp_begin failed"); return 1; }
     printf("%ld pages of %ld x %ld pixels\n", pages, pw, ph);
@@ -157,7 +158,7 @@ int main(int argc, char **argv)
     }
     tp_end(tp);
     for (n = doc->root; n; ) {
-        if (n->img) { free(((struct TImage *)n->img)->pix); free(n->img); }
+        if (n->img) { free(((struct TImage *)n->img)->pix); free(((struct TImage *)n->img)->fpix); free(n->img); }
         if (n->first) n = n->first;
         else { while (n && !n->next) n = n->parent; if (n) n = n->next; }
     }

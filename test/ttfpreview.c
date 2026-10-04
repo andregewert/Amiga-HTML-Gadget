@@ -137,6 +137,7 @@ int main(int argc, char **argv)
     memset(&env, 0, sizeof(env));
     env.text_width = tw;
     env.margin = 8;
+    env.fit_images = getenv("FIT") != NULL;     /* HTML_FitImages */
     tr_metrics(&R, &env);
     lay = html_layout(doc, &env, width);
     {   /* optional test selection: argv[7] = "first,last" item */
@@ -170,7 +171,7 @@ int main(int argc, char **argv)
     }
     printf("%ld x %ld, %ld items, font height %d/%d\n", width, lay->height, lay->nitems, env.font_height[2], env.font_baseline[2]);
     for (n = doc->root; n; ) {
-        if (n->img && n->tag != T_TD && n->tag != T_TABLE) { free(((struct TImage *)n->img)->pix); free(n->img); }
+        if (n->img && n->tag != T_TD && n->tag != T_TABLE) { free(((struct TImage *)n->img)->pix); free(((struct TImage *)n->img)->fpix); free(n->img); }
         if (n->first) n = n->first;
         else { while (n && !n->next) n = n->parent; if (n) n = n->next; }
     }
