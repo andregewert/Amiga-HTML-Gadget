@@ -15,7 +15,7 @@ LIBFLAGS:= -nostartfiles -nostdlib
 DEMOFLAGS := $(CPU) -Os -Wall -fno-common -Iinclude -noixemul
 
 LIBSRC  := src/html_lib.c src/html_class.c src/html_parse.c src/html_layout.c src/html_select.c src/html_clip.c \
-           src/html_check.c
+           src/html_check.c src/html_print.c src/html_afm.c
 LIBOBJ  := $(LIBSRC:src/%.c=$(B)/%.o)
 
 DEMOFILES := $(addprefix bin/,example.html zweite.html hintergrund.html tabellen.html umfluss.html boing.gif farben.iff papier.gif kachel.gif streifen.gif)
@@ -34,7 +34,8 @@ FTSRC   := ttf/ftbase_html.c $(FT)/src/base/ftinit.c $(FT)/src/base/ftdebug.c \
            $(FT)/src/truetype/truetype.c $(FT)/src/sfnt/sfnt.c $(FT)/src/autofit/autofit.c \
            $(FT)/src/smooth/smooth.c ttf/ftsystem.c ttf/ftlibc.c
 FTOBJ   := $(addprefix $(B)/ft/,$(notdir $(FTSRC:.c=.o)))
-TTFOBJ  := $(B)/ttf/html_lib.o $(B)/ttf/htmlttf_class.o $(B)/ttf/htmlttf_render.o $(B)/html_parse.o $(B)/html_layout.o $(B)/html_select.o $(B)/html_clip.o $(B)/html_check.o $(FTOBJ)
+TTFOBJ  := $(B)/ttf/html_lib.o $(B)/ttf/htmlttf_class.o $(B)/ttf/htmlttf_render.o $(B)/html_parse.o $(B)/html_layout.o $(B)/html_select.o $(B)/html_clip.o $(B)/html_check.o \
+           $(B)/html_print.o $(B)/html_afm.o $(FTOBJ)
 
 all: charcheck bin/html.gadget bin/htmlttf.gadget bin/HTMLDemo $(DEMOFILES) $(FONTFILES)
 
@@ -89,7 +90,7 @@ charcheck:
 	@if LC_ALL=C grep -lP '[\xC2-\xF4][\x80-\xBF]' $(LATIN1); then \
 		echo "*** Die Dateien oben enthalten UTF-8, bitte nach ISO-8859-1 wandeln"; exit 1; fi
 
-$(B)/%.o: src/%.c src/html_core.h src/html_private.h include/gadgets/html.h
+$(B)/%.o: src/%.c src/html_core.h src/html_print.h src/html_private.h include/gadgets/html.h
 	@mkdir -p $(B)
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -117,6 +118,23 @@ HOSTFTDEFS := -Ittf/include -I$(FT)/include -I$(FT)/src/base -DFT2_BUILD_LIBRARY
 test/ttfpreview: test/ttfpreview.c src/htmlttf_render.c src/htmlttf_render.h src/html_parse.c src/html_layout.c src/html_select.c src/html_check.c
 	cc -g -O1 -w $(HOSTFTDEFS) -o $@ test/ttfpreview.c src/htmlttf_render.c src/html_parse.c src/html_layout.c src/html_select.c src/html_check.c $(HOSTFTSRC)
 
+# host test of the print engine (PostScript/PDF)
+PRINTSRC := src/html_print.c src/html_afm.c src/html_parse.c src/html_layout.c src/html_select.c
+test/hostprint: test/hostprint.c $(PRINTSRC) src/html_print.h src/html_core.h
+	cc -g -Wall -Wextra -fsanitize=address,undefined -Isrc -o $@ test/hostprint.c $(PRINTSRC)
+
+# character widths of the standard PostScript fonts: AFM=<directory with the
+# Adobe Core 14 AFM files (helvetica.afm, times-roman.afm, ...)>
+afm:
+	python3 tools/afm2c.py $(AFM) src/html_afm.c
+
+# pages of the CHECKS as PDF, rendered to PNG in build/print
+print-preview: test/hostprint
+	@mkdir -p build/print
+	@for t in $(CHECKS); do f=$${t%:*}; n=$$(basename $$f .html); \
+		./test/hostprint $$f build/print/$$n.pdf && pdftoppm -r 80 -png build/print/$$n.pdf build/print/$$n; \
+	done
+
 preview: test/ttfpreview
 	./test/ttfpreview demo/example.html 560 preview.ppm demo/fonts Vera 12
 
@@ -124,12 +142,20 @@ preview: test/ttfpreview
 CHECKS  := demo/example.html:400 demo/tabellen.html:400 demo/umfluss.html:400 \
            test/floats.html:300 test/rowspan.html:400 test/checkbox.html:400
 
-check: test/hosttest
+# the print engine must write PostScript and PDF that Ghostscript reads
+# without complaint (checked only if gs is installed)
+check: test/hosttest test/hostprint
 	@mkdir -p build/test; fail=0; \
 	for t in $(CHECKS); do f=$${t%:*}; w=$${t#*:}; n=$$(basename $$f .html); \
 		if ./test/hosttest $$f $$w > build/test/$$n.out && \
 		   diff -u test/$$n.expected build/test/$$n.out; then echo "ok   $$f"; \
 		else echo "FAIL $$f"; fail=1; fi; \
+		for x in ps pdf; do \
+			if ./test/hostprint $$f build/test/$$n.$$x > /dev/null && \
+			   { ! command -v gs > /dev/null || { gs -q -dNOPAUSE -dBATCH -sDEVICE=nullpage build/test/$$n.$$x > build/test/$$n.$$x.log 2>&1 && \
+			     ! grep -q . build/test/$$n.$$x.log; }; }; \
+			then echo "ok   $$f ($$x)"; else echo "FAIL $$f ($$x)"; cat build/test/$$n.$$x.log 2>/dev/null; fail=1; fi; \
+		done; \
 	done; exit $$fail
 
 # accept the current layout as reference after an intended change
@@ -147,6 +173,6 @@ dist: all
 	FT=$(FT) python3 tools/mkdist.py
 
 clean:
-	rm -rf build bin dist test/hosttest test/ttfpreview preview.ppm
+	rm -rf build bin dist test/hosttest test/hostprint test/ttfpreview preview.ppm
 
-.PHONY: all clean check check-update charcheck preview dist icons ttf020
+.PHONY: all clean check check-update charcheck preview print-preview afm dist icons ttf020
