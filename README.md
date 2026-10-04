@@ -146,6 +146,7 @@ through `exec.library/StackSwap()`, as the gadget does itself. HTMLDemo uses the
 | `HTML_HasSelection` | BOOL | G | is text selected? |
 | `HTML_SelectedText` | STRPTR | G | selected text (Latin-1), owned by the gadget |
 | `HTMLM_Export` | method | | writes the document as PostScript or PDF, `HTMLEX_…` tags (V1.2) |
+| `HTMLM_PrintBegin` / `HTMLM_PrintRender` / `HTMLM_PrintEnd` | methods | | bitmap printing: pages as pixels, e.g. for printer.device `DRPA_SourceHook`; htmlttf.gadget in the printer's resolution, html.gadget with its bitmap fonts (V1.2) |
 | `HTMLTTF_FontDir` | STRPTR | I | directory of the `.ttf` files (htmlttf.gadget) |
 | `HTMLTTF_FontSet` | STRPTR | I | `"Vera"`, `"DejaVu"` or `"Noto"` (htmlttf.gadget) |
 | `HTMLTTF_Size` | LONG | I | pixel size of body text (htmlttf.gadget) |
@@ -194,6 +195,7 @@ of its size: copy `NotoSans-Regular/-Bold/-Italic/-BoldItalic.ttf` and
 | `src/html_clip.c` | clipboard writer (IFF FTXT) |
 | `src/html_print.c`, `src/html_afm.c` | platform independent print engine: layout with PostScript font metrics, page breaks, PostScript and PDF output |
 | `src/html_export.c` | `HTMLM_Export` for both classes: tags, DOS output, pictures with original pixels |
+| `src/htmlttf_print.c` | platform independent bitmap printing of htmlttf.gadget (pages in strips for a printer resolution) |
 | `src/html_lib.c` | library frame (RomTag, Init/Open/Close/Expunge, `*_GetClass`) for both classes |
 | `ttf/` | FreeType configuration, C library shim and system interface |
 | `demo/` | HTMLDemo and example pages |

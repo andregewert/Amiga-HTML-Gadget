@@ -2,6 +2,9 @@ TABLE OF CONTENTS
 
 html.gadget/--datasheet--
 html.gadget/HTMLM_Export
+html.gadget/HTMLM_PrintBegin
+html.gadget/HTMLM_PrintEnd
+html.gadget/HTMLM_PrintRender
 html.gadget/HTML_Anchor
 html.gadget/HTML_AutoAnchors
 html.gadget/HTML_BaseDir
@@ -53,7 +56,7 @@ html.gadget/HTML_Visible
    METHODS
     OM_NEW, OM_SET, OM_UPDATE, OM_GET, OM_DISPOSE, GM_DOMAIN, GM_LAYOUT,
     GM_RENDER, GM_HITTEST, GM_GOACTIVE, GM_HANDLEINPUT, GM_GOINACTIVE,
-    HTMLM_Export (V1.2).
+    HTMLM_Export, HTMLM_PrintBegin, HTMLM_PrintRender, HTMLM_PrintEnd (V1.2).
     All other methods are passed to the superclass.
 
    ATTRIBUTES
@@ -182,6 +185,87 @@ html.gadget/HTML_Visible
 
    SEE ALSO
     gadgets/html.h, Demo/HTMLDemo.c
+html.gadget/HTMLM_PrintBegin                      html.gadget/HTMLM_PrintBegin
+
+   NAME
+    HTMLM_PrintBegin -- lay the document out for bitmap printing (V1.2)
+
+   SYNOPSIS
+    LONG pages = DoMethod(obj, HTMLM_PrintBegin, struct TagItem *tags);
+
+   FUNCTION
+    Prepares the pages of the document as pixels of the whole sheet. The
+    document is laid out for the paper with the gadget's bitmap fonts, at
+    the resolution that fits their size: the line height of the normal
+    font corresponds to 1.2 times HTMLEX_FontSize. HTMLEX_DPI is ignored;
+    HTMLEX_PageWidth/Height tell the size of the sheet in pixels, and the
+    printer driver scales the pages to the paper. The result is as coarse
+    as the fonts; htmlttf.gadget prints in the resolution of the printer.
+
+    The pages are drawn as on the screen, with the screen's pens and the
+    pictures remapped for it, so the gadget must have been shown (a
+    GM_RENDER) on a screen that is still open while printing. Margins are
+    white, HTMLEX_Footer is drawn centred in the bottom margin, tiled
+    background pictures are not printed.
+
+    A new HTMLM_PrintBegin, setting a new document or disposing the gadget
+    frees an earlier print layout.
+
+   TAGS
+    HTMLEX_PaperWidth, HTMLEX_PaperHeight, HTMLEX_MarginLeft,
+    HTMLEX_MarginTop, HTMLEX_MarginRight, HTMLEX_MarginBottom,
+    HTMLEX_FontSize, HTMLEX_Backgrounds, HTMLEX_Footer - as for
+        HTMLM_Export.
+    HTMLEX_Pages (LONG *) - receives the number of pages.
+    HTMLEX_PageWidth, HTMLEX_PageHeight (LONG *) - receive the size of
+        the sheet in pixels.
+
+   RESULT
+    pages - the number of pages, -1 without memory or document, or if the
+        gadget has not been shown yet.
+
+   SEE ALSO
+    HTMLM_PrintRender, HTMLM_PrintEnd, HTMLM_Export,
+    htmlttf.gadget/HTMLM_PrintBegin, printer.device/PRD_DUMPRPORTTAGS,
+    Demo/HTMLDemo.c
+html.gadget/HTMLM_PrintEnd                          html.gadget/HTMLM_PrintEnd
+
+   NAME
+    HTMLM_PrintEnd -- free the print layout (V1.2)
+
+   SYNOPSIS
+    DoMethod(obj, HTMLM_PrintEnd);
+
+   FUNCTION
+    Frees what HTMLM_PrintBegin set up. Nothing happens without it.
+
+   SEE ALSO
+    HTMLM_PrintBegin
+html.gadget/HTMLM_PrintRender                    html.gadget/HTMLM_PrintRender
+
+   NAME
+    HTMLM_PrintRender -- pixels of a rectangle of a page (V1.2)
+
+   SYNOPSIS
+    BOOL ok = DoMethod(obj, HTMLM_PrintRender, LONG page, LONG x, LONG y,
+                       LONG width, LONG height, ULONG *buffer);
+
+   FUNCTION
+    Fills buffer with width * height pixels 0x00RRGGBB, row by row, of the
+    rectangle x/y/width/height (in pixels of the sheet, see
+    HTMLEX_PageWidth/Height) of page 'page' (from 1). This is the format
+    of struct DRPSourceMsg, so a DRPA_SourceHook can pass its buffer on.
+    The rectangle is drawn into a bitmap of the screen's format and read
+    back (cybergraphics.library on RTG screens, else the colour map).
+
+    It may be called from another task, e.g. printer.device's; it works on
+    a stack of its own and locks the gadget meanwhile.
+
+   RESULT
+    ok - FALSE without HTMLM_PrintBegin or without memory.
+
+   SEE ALSO
+    HTMLM_PrintBegin
 html.gadget/HTML_Anchor                                html.gadget/HTML_Anchor
 
    NAME

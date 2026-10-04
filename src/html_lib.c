@@ -38,9 +38,7 @@ struct Library       *UtilityBase;
 struct Library       *LayersBase;
 struct Library       *DiskfontBase;
 struct Library       *DataTypesBase;
-#ifdef HTML_TTF
 struct Library       *CyberGfxBase;
-#endif
 
 static struct SignalSemaphore DiskfontLock;
 static BPTR SegList;
@@ -100,10 +98,8 @@ const struct Resident ROMTag = {
 
 static void close_libs(void)
 {
-#ifdef HTML_TTF
     if (CyberGfxBase)  CloseLibrary(CyberGfxBase);
     CyberGfxBase = NULL;
-#endif
     if (DataTypesBase) CloseLibrary(DataTypesBase);
     if (DiskfontBase)  CloseLibrary(DiskfontBase);
     if (LayersBase)    CloseLibrary(LayersBase);
@@ -215,8 +211,8 @@ BOOL html_open_datatypes(void)
     return DataTypesBase != NULL;
 }
 
-#ifdef HTML_TTF
-/* cybergraphics.library (RTG): WritePixelArray() for true colour output */
+/* cybergraphics.library (RTG): WritePixelArray() for true colour output
+ * (htmlttf.gadget), ReadPixelArray() for printing (html.gadget)         */
 BOOL html_open_cybergfx(void)
 {
     ObtainSemaphore(&DiskfontLock);
@@ -224,7 +220,6 @@ BOOL html_open_cybergfx(void)
     ReleaseSemaphore(&DiskfontLock);
     return CyberGfxBase != NULL;
 }
-#endif
 
 /* diskfont.library is disk based: open it lazily from a process */
 void html_open_diskfont(void)

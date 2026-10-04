@@ -146,6 +146,7 @@ nutzt den Weg über libnix.
 | `HTML_HasSelection` | BOOL | G | ist Text markiert? |
 | `HTML_SelectedText` | STRPTR | G | markierter Text (Latin-1), gehört dem Gadget |
 | `HTMLM_Export` | Methode | | schreibt das Dokument als PostScript oder PDF, Tags `HTMLEX_…` (V1.2) |
+| `HTMLM_PrintBegin` / `HTMLM_PrintRender` / `HTMLM_PrintEnd` | Methoden | | Bitmap-Druck: Seiten als Pixel, z. B. für den `DRPA_SourceHook` von printer.device; htmlttf.gadget in der Druckerauflösung, html.gadget mit seinen Bitmap-Schriften (V1.2) |
 
 ## htmlttf.gadget – alternativer Renderer mit FreeType
 
@@ -240,6 +241,7 @@ anderen Screen, erscheinen die Bilder als leere Rahmen, bis das Dokument erneut 
 | `src/html_clip.c` | IFF-FTXT in die Zwischenablage (clipboard.device) |
 | `src/html_print.c`, `src/html_afm.c` | plattformunabhängige Druck-Engine: Layout mit PostScript-Schriftmaßen, Seitenumbruch, PostScript- und PDF-Ausgabe |
 | `src/html_export.c` | `HTMLM_Export` für beide Klassen: Tags, DOS-Ausgabe, Bilder mit Originalpixeln |
+| `src/htmlttf_print.c` | plattformunabhängiger Bitmap-Druck von htmlttf.gadget (Seiten in Streifen für eine Druckerauflösung) |
 | `src/html_lib.c` | Library-Rahmen (RomTag, Init/Open/Close/Expunge, `HTML_GetClass`), für beide Klassen |
 | `src/htmlttf_class.c` | BOOPSI-Dispatcher von `htmlttf.gadget` (Fonts laden, Bilder als ARGB, Ausgabe) |
 | `src/htmlttf_render.c` | plattformunabhängiger FreeType-Renderer: Glyph-Cache, Compositing, Bildskalierung |

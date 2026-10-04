@@ -4,6 +4,7 @@
 /dist/
 /test/hosttest
 /test/hostprint
+/test/ttfprint
 /test/ttfpreview
 *.o
 *.debug

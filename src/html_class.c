@@ -45,11 +45,14 @@
 #include <proto/diskfont.h>
 #include <diskfont/diskfont.h>
 #include <proto/datatypes.h>
+#include <proto/cybergraphics.h>
+#include <cybergraphx/cybergraphics.h>
 
 #include "gadgets/html.h"
 #include "html_core.h"
 #include "html_private.h"
 #include "html_export.h"
+#include "html_print.h"
 
 #define LAYOUT_STACK  (64 * 1024)
 #define MAXPENS       64
@@ -132,9 +135,14 @@ struct HTMLData {
     struct Layer     *layer;
     LONG              bmw, bmh;
     struct BitMap    *friend;
+
+    struct Screen    *scr;               /* screen of the last GM_RENDER (for printing) */
+    struct BMPrint   *print;             /* HTMLM_PrintBegin .. HTMLM_PrintEnd */
 };
 
 const ULONG html_inst_size = sizeof(struct HTMLData);
+
+static void print_free(struct HTMLData *d);
 
 /* ------------------------------------------------------------------ */
 /* core hooks: memory                                                  */
@@ -764,6 +772,7 @@ static void render(struct HTMLData *d, struct Gadget *g, struct GadgetInfo *gi, 
     if (box.Width <= 2 * inset(d) || box.Height <= 2 * inset(d)) return;
 
     ObtainSemaphore(&d->lock);
+    d->scr = gi->gi_Screen;
     update_visible(d, &box);
     ensure_layout(d);
     ix = box.Left + inset(d);
@@ -1180,6 +1189,7 @@ static BOOL set_document(struct HTMLData *d, CONST_STRPTR src, LONG len, CONST_S
     }
 
     ObtainSemaphore(&d->lock);
+    print_free(d);                      /* belongs to the old document */
     if (d->lay) { html_free_layout(d->lay); d->lay = NULL; }
     html_free_doc(d->doc);
     if (d->source) FreeVec(d->source);
@@ -1490,6 +1500,7 @@ static void om_dispose(Class *cl, Object *o)
 {
     struct HTMLData *d = INST_DATA(cl, o);
 
+    print_free(d);
     free_buffer(d);
     release_pens(d);
     if (d->lay) html_free_layout(d->lay);
@@ -1737,6 +1748,254 @@ static LONG export_doc(Class *cl, Object *o, struct hmExport *msg)
     return a.result;
 }
 
+/* ------------------------------------------------------------------ */
+/* bitmap printing                                                     */
+
+/* The pages with the bitmap fonts of the gadget: laid out for the paper
+ * at the resolution that fits the fonts (normal text of HTMLEX_FontSize
+ * with the line height of the screen font), drawn with draw_content()
+ * into a bitmap of the screen the gadget was shown on last, read back
+ * as RGB. The printer driver scales it to the paper.                  */
+struct BMPrint {
+    void           *pool;
+    struct HLayout *lay;
+    long           *tops, npages;
+    LONG            height;         /* page height (layout pixels) */
+    LONG            pw, ph;         /* sheet in pixels */
+    LONG            ml, mt, mb, cw; /* margins and content width in pixels */
+    const char     *footer;
+    char            ftext[64];
+};
+
+static void print_free(struct HTMLData *d)
+{
+    struct BMPrint *p = d->print;
+    if (!p) return;
+    if (p->lay) html_free_layout(p->lay);
+    if (p->pool) hsys_pool_delete(p->pool);
+    FreeVec(p);
+    d->print = NULL;
+}
+
+struct BMBegin {
+    struct HTMLData *d;
+    struct HEnv      env;
+    LONG             width;
+};
+
+static ULONG print_layout_func(APTR arg)
+{
+    struct BMBegin *b = arg;
+    struct BMPrint *p = b->d->print;
+    p->lay = html_layout(b->d->doc, &b->env, b->width);
+    if (p->lay) p->tops = html_print_paginate(p->lay, p->pool, p->height, &p->npages);
+    return 0;
+}
+
+static LONG print_begin(Class *cl, Object *o, struct hmPrintBegin *msg)
+{
+    struct HTMLData *d = INST_DATA(cl, o);
+    struct TagItem *tags = msg->hmpb_Tags;
+    LONG *pages = (LONG *)GetTagData(HTMLEX_Pages, 0, tags);
+    LONG *pwp = (LONG *)GetTagData(HTMLEX_PageWidth, 0, tags);
+    LONG *php = (LONG *)GetTagData(HTMLEX_PageHeight, 0, tags);
+    LONG paper_w = GetTagData(HTMLEX_PaperWidth, 595, tags), paper_h = GetTagData(HTMLEX_PaperHeight, 842, tags);
+    LONG ml = GetTagData(HTMLEX_MarginLeft, 57, tags), mt = GetTagData(HTMLEX_MarginTop, 57, tags);
+    LONG mr = GetTagData(HTMLEX_MarginRight, 57, tags), mb = GetTagData(HTMLEX_MarginBottom, 57, tags);
+    LONG size10 = GetTagData(HTMLEX_FontSize, 100, tags), dpi, i, result = -1;
+    BOOL bg = GetTagData(HTMLEX_Backgrounds, TRUE, tags) != 0;
+    struct BMBegin b;
+    struct BMPrint *p;
+
+    if (pages) *pages = 0;
+    ObtainSemaphore(&d->lock);
+    print_free(d);
+    if (!d->doc || !d->scr || !d->use[HF_INDEX(0, 3)] || size10 <= 0 ||
+        !(p = d->print = AllocVec(sizeof(*p), MEMF_ANY | MEMF_CLEAR)))
+        goto out;
+    if (!(p->pool = hsys_pool_create())) goto out;
+    /* line height of the screen font = 1.2 em of the requested size */
+    dpi = d->env.font_height[HF_INDEX(0, 3)] * 600 / size10;
+    if (dpi < 40) dpi = 40;
+    if (dpi > 600) dpi = 600;
+    p->footer = (const char *)GetTagData(HTMLEX_Footer, 0, tags);
+    p->pw = paper_w * dpi / 72;
+    p->ph = paper_h * dpi / 72;
+    p->ml = ml * dpi / 72;
+    p->mt = mt * dpi / 72;
+    p->mb = mb * dpi / 72;
+    p->cw = p->pw - p->ml - mr * dpi / 72;
+    p->height = p->ph - p->mt - p->mb;
+    b.d = d;
+    b.env = d->env;
+    b.env.margin = 0;
+    b.env.system_colors = 0;        /* black on white */
+    b.width = p->cw;
+    if (b.width < 50 || p->height < 50 || !call_big_stack(print_layout_func, &b) || !p->lay || !p->tops)
+        goto out;
+    for (i = 0; i < p->lay->nitems; i++) {
+        struct HItem *it = &p->lay->items[i];
+        if (it->type == IT_RECT) {
+            it->img = NULL;             /* no tiled pictures */
+            if (!bg) it->color = COL_NONE;
+        }
+    }
+    if (!bg || !COL_IS_RGB(p->lay->bgcolor)) p->lay->bgcolor = 0xFFFFFF;
+    if (pages) *pages = p->npages;
+    if (pwp) *pwp = p->pw;
+    if (php) *php = p->ph;
+    result = p->npages;
+out:
+    if (result < 0) print_free(d);
+    ReleaseSemaphore(&d->lock);
+    return result;
+}
+
+struct BMRender {
+    struct HTMLData      *d;
+    struct hmPrintRender *m;
+    BOOL                  ok;
+};
+
+static void clip_to(struct Layer *layer, LONG x0, LONG y0, LONG x1, LONG y1)
+{
+    struct Region *reg = NewRegion(), *old;
+    struct Rectangle r;
+    if (!reg) return;
+    r.MinX = x0; r.MinY = y0; r.MaxX = x1 - 1; r.MaxY = y1 - 1;
+    OrRectRegion(reg, &r);
+    if ((old = InstallClipRegion(layer, reg))) DisposeRegion(old);
+}
+
+static ULONG print_render_func(APTR arg)
+{
+    struct BMRender *a = arg;
+    struct HTMLData *d = a->d;
+    struct BMPrint *p = d->print;
+    struct hmPrintRender *m = a->m;
+    LONG x = m->hmpr_X, y = m->hmpr_Y, w = m->hmpr_Width, h = m->hmpr_Height, page = m->hmpr_Page;
+    struct BitMap *friend = d->scr->RastPort.BitMap, *bm;
+    ULONG depth = GetBitMapAttr(friend, BMA_DEPTH), *buf = m->hmpr_Buffer;
+    struct Layer_Info *li = NULL;
+    struct Layer *layer = NULL;
+    struct GadgetInfo gi;
+    struct RastPort *rp;
+    LONG top, bottom, cx0, cy0, cx1, cy1, i;
+
+    if (w <= 0 || h <= 0 || page < 1 || page > p->npages) return 0;
+    if (!(bm = AllocBitMap(w, h, depth, BMF_MINPLANES, friend))) return 0;
+    if (!(li = NewLayerInfo()) || !(layer = CreateUpfrontLayer(li, bm, 0, 0, w - 1, h - 1, LAYERSIMPLE, NULL)))
+        goto out;
+    rp = layer->rp;
+    h_memset(&gi, 0, sizeof(gi));
+    gi.gi_Screen = d->scr;
+    if (!(gi.gi_DrInfo = GetScreenDrawInfo(d->scr))) goto out;
+
+    SetDrMd(rp, JAM1);
+    SetAPen(rp, get_pen(d, &gi, 0xFFFFFF, BACKGROUNDPEN));
+    RectFill(rp, 0, 0, w - 1, h - 1);
+
+    /* the content of the page, clipped to its area */
+    top = p->tops[page - 1];
+    bottom = page < p->npages ? p->tops[page] : top + p->height;
+    cx0 = x > p->ml ? x : p->ml;
+    cy0 = y > p->mt ? y : p->mt;
+    cx1 = x + w < p->ml + p->cw ? x + w : p->ml + p->cw;
+    cy1 = y + h < p->mt + (bottom - top) ? y + h : p->mt + (bottom - top);
+    if (cx0 < cx1 && cy0 < cy1) {
+        struct HLayout *lay = d->lay;
+        LONG otop = d->top, oleft = d->left, ow = d->visw, oh = d->vish;
+        BOOL sel = d->sel.active, pressed = d->pressed;
+        struct HImage *bgimg = d->bgimg;
+        clip_to(layer, cx0 - x, cy0 - y, cx1 - x, cy1 - y);
+        d->lay = p->lay;
+        d->left = cx0 - p->ml;
+        d->top = top + cy0 - p->mt;
+        d->visw = cx1 - cx0;
+        d->vish = cy1 - cy0;
+        d->sel.active = 0;
+        d->pressed = FALSE;
+        d->bgimg = NULL;
+        draw_content(d, &gi, rp, cx0 - x, cy0 - y);
+        d->lay = lay;
+        d->top = otop;
+        d->left = oleft;
+        d->visw = ow;
+        d->vish = oh;
+        d->sel.active = sel;
+        d->pressed = pressed;
+        d->bgimg = bgimg;
+    }
+
+    /* the page number, centred in the bottom margin */
+    if (p->footer && *p->footer && y + h > p->ph - p->mb && y < p->ph) {
+        struct TextFont *tf = d->use[HF_INDEX(0, 2)] ? d->use[HF_INDEX(0, 2)] : d->use[HF_INDEX(0, 3)];
+        long len = html_print_footer(p->ftext, sizeof(p->ftext), p->footer, page, p->npages);
+        clip_to(layer, 0, (p->ph - p->mb > y ? p->ph - p->mb : y) - y, w, (p->ph < y + h ? p->ph : y + h) - y);
+        SetFont(rp, tf);
+        SetSoftStyle(rp, 0, AskSoftStyle(rp));
+        SetAPen(rp, get_pen(d, &gi, 0x000000, TEXTPEN));
+        Move(rp, (p->pw - TextLength(rp, (STRPTR)p->ftext, len)) / 2 - x, p->ph - p->mb / 2 - y);
+        Text(rp, (STRPTR)p->ftext, len);
+    }
+    InstallClipRegion(layer, NULL);
+    WaitBlit();
+
+    /* read the pixels back as RGB */
+    if (depth > 8 && html_open_cybergfx() && GetCyberMapAttr(bm, CYBRMATTR_ISCYBERGFX)) {
+        ReadPixelArray(buf, 0, 0, w * 4, rp, 0, 0, w, h, RECTFMT_ARGB);
+        for (i = 0; i < w * h; i++) buf[i] &= 0xFFFFFFUL;
+        a->ok = TRUE;
+    } else if (depth <= 8) {
+        LONG mod = (w + 15) & ~15, n = 1L << depth, row;
+        UBYTE *pens = AllocVec(mod * 16, MEMF_ANY);
+        ULONG *cols = AllocVec(n * 3 * sizeof(ULONG), MEMF_ANY);
+        struct BitMap *tbm = AllocBitMap(mod, 1, depth, 0, NULL);
+        struct RastPort trp;
+        if (pens && cols && tbm) {
+            GetRGB32(d->scr->ViewPort.ColorMap, 0, n, cols);
+            trp = *rp;
+            trp.Layer = NULL;
+            trp.BitMap = tbm;
+            /* 16 rows at a time */
+            for (row = 0; row < h; row += 16) {
+                LONG k = h - row < 16 ? h - row : 16, yy, xx;
+                ReadPixelArray8(rp, 0, row, w - 1, row + k - 1, pens, &trp);
+                for (yy = 0; yy < k; yy++)
+                    for (xx = 0; xx < w; xx++) {
+                        UBYTE c = pens[yy * mod + xx];
+                        buf[(row + yy) * w + xx] = (cols[c * 3] >> 24) << 16 | (cols[c * 3 + 1] >> 24) << 8 |
+                                                   (cols[c * 3 + 2] >> 24);
+                    }
+            }
+            a->ok = TRUE;
+        }
+        if (tbm) FreeBitMap(tbm);
+        if (cols) FreeVec(cols);
+        if (pens) FreeVec(pens);
+    }
+out:
+    if (gi.gi_DrInfo) FreeScreenDrawInfo(d->scr, gi.gi_DrInfo);
+    if (layer) DeleteLayer(0, layer);
+    if (li) DisposeLayerInfo(li);
+    WaitBlit();
+    FreeBitMap(bm);
+    return 0;
+}
+
+/* may run on the printer's task; the gadget is locked meanwhile */
+static ULONG print_render(Class *cl, Object *o, struct hmPrintRender *msg)
+{
+    struct BMRender a;
+    a.d = INST_DATA(cl, o);
+    a.m = msg;
+    a.ok = FALSE;
+    ObtainSemaphore(&a.d->lock);
+    if (a.d->print && a.d->scr) call_big_stack(print_render_func, &a);
+    ReleaseSemaphore(&a.d->lock);
+    return (ULONG)a.ok;
+}
+
 ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __asm("a1"))
 {
     switch (msg->MethodID) {
@@ -1768,6 +2027,17 @@ ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __as
         return gm_goinactive(cl, o, (struct gpGoInactive *)msg);
     case HTMLM_Export:
         return (ULONG)export_doc(cl, o, (struct hmExport *)msg);
+    case HTMLM_PrintBegin:
+        return (ULONG)print_begin(cl, o, (struct hmPrintBegin *)msg);
+    case HTMLM_PrintRender:
+        return print_render(cl, o, (struct hmPrintRender *)msg);
+    case HTMLM_PrintEnd: {
+        struct HTMLData *d = INST_DATA(cl, o);
+        ObtainSemaphore(&d->lock);
+        print_free(d);
+        ReleaseSemaphore(&d->lock);
+        return 0;
+    }
     }
     return dsm(cl, o, msg);
 }

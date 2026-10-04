@@ -34,7 +34,7 @@ FTSRC   := ttf/ftbase_html.c $(FT)/src/base/ftinit.c $(FT)/src/base/ftdebug.c \
            $(FT)/src/truetype/truetype.c $(FT)/src/sfnt/sfnt.c $(FT)/src/autofit/autofit.c \
            $(FT)/src/smooth/smooth.c ttf/ftsystem.c ttf/ftlibc.c
 FTOBJ   := $(addprefix $(B)/ft/,$(notdir $(FTSRC:.c=.o)))
-TTFOBJ  := $(B)/ttf/html_lib.o $(B)/ttf/htmlttf_class.o $(B)/ttf/htmlttf_render.o $(B)/html_parse.o $(B)/html_layout.o $(B)/html_select.o $(B)/html_clip.o $(B)/html_check.o \
+TTFOBJ  := $(B)/ttf/html_lib.o $(B)/ttf/htmlttf_class.o $(B)/ttf/htmlttf_render.o $(B)/ttf/htmlttf_print.o $(B)/html_parse.o $(B)/html_layout.o $(B)/html_select.o $(B)/html_clip.o $(B)/html_check.o \
            $(B)/html_print.o $(B)/html_afm.o $(B)/html_export.o $(FTOBJ)
 
 all: charcheck bin/html.gadget bin/htmlttf.gadget bin/HTMLDemo $(DEMOFILES) $(FONTFILES)
@@ -64,11 +64,15 @@ $(B)/ttf/html_lib.o: src/html_lib.c src/html_private.h
 	@mkdir -p $(B)/ttf
 	$(CC) $(CFLAGS) -DHTML_TTF '-DLIBNAME="htmlttf.gadget"' -c $< -o $@
 
-$(B)/ttf/htmlttf_class.o: src/htmlttf_class.c src/htmlttf_render.h src/html_core.h src/html_export.h src/html_print.h $(FTCONF) src/html_private.h include/gadgets/html.h include/gadgets/htmlttf.h
+$(B)/ttf/htmlttf_class.o: src/htmlttf_class.c src/htmlttf_render.h src/html_core.h src/html_export.h src/html_print.h src/htmlttf_print.h $(FTCONF) src/html_private.h include/gadgets/html.h include/gadgets/htmlttf.h
 	@mkdir -p $(B)/ttf
 	$(CC) $(CFLAGS) -DHTML_TTF $(FTDEFS) -c $< -o $@
 
 $(B)/ttf/htmlttf_render.o: src/htmlttf_render.c src/htmlttf_render.h src/html_core.h $(FTCONF)
+	@mkdir -p $(B)/ttf
+	$(CC) $(CFLAGS) $(FTDEFS) -c $< -o $@
+
+$(B)/ttf/htmlttf_print.o: src/htmlttf_print.c src/htmlttf_print.h src/htmlttf_render.h src/html_print.h src/html_core.h $(FTCONF)
 	@mkdir -p $(B)/ttf
 	$(CC) $(CFLAGS) $(FTDEFS) -c $< -o $@
 
@@ -135,6 +139,16 @@ print-preview: test/hostprint
 		./test/hostprint $$f build/print/$$n.pdf && pdftoppm -r 80 -png build/print/$$n.pdf build/print/$$n; \
 	done
 
+# host test of the bitmap printing (htmlttf_print.c): pages as build/print/ttf-<n>.ppm
+TTFPRINTSRC := src/htmlttf_print.c src/htmlttf_render.c src/html_print.c src/html_afm.c src/html_parse.c \
+               src/html_layout.c src/html_select.c src/html_check.c
+test/ttfprint: test/ttfprint.c $(TTFPRINTSRC) src/htmlttf_print.h src/htmlttf_render.h src/html_print.h
+	cc -g -O1 -w -fsanitize=address,undefined $(HOSTFTDEFS) -o $@ test/ttfprint.c $(TTFPRINTSRC) $(HOSTFTSRC)
+
+print-ttf: test/ttfprint
+	@mkdir -p build/print
+	ASAN_OPTIONS=detect_leaks=0 ./test/ttfprint demo/example.html 100 build/print/ttf demo/fonts Vera
+
 preview: test/ttfpreview
 	./test/ttfpreview demo/example.html 560 preview.ppm demo/fonts Vera 12
 
@@ -173,6 +187,6 @@ dist: all
 	FT=$(FT) python3 tools/mkdist.py
 
 clean:
-	rm -rf build bin dist test/hosttest test/hostprint test/ttfpreview preview.ppm
+	rm -rf build bin dist test/hosttest test/hostprint test/ttfpreview test/ttfprint preview.ppm
 
-.PHONY: all clean check check-update charcheck preview print-preview afm dist icons ttf020
+.PHONY: all clean check check-update charcheck preview print-preview print-ttf afm dist icons ttf020

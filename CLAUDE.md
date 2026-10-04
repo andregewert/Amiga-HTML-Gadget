@@ -33,6 +33,12 @@ Aufbau, Features und Build sind in `README.de.md` beschrieben.
   Die Druck-Engine ist plattformunabhängig (Layout in Pixeln zu 1/96 Zoll mit den
   AFM-Breiten aus `src/html_afm.c`, erzeugt von `tools/afm2c.py`); die Amiga-Seite
   (`HTMLM_Export`: Tags, DOS-Ausgabe, Bildpixel) steht in `src/html_export.c`.
+- Bitmap-Druck (`HTMLM_PrintBegin/Render/End`): html.gadget zeichnet mit `draw_content()` in
+  eine Bitmap des zuletzt benutzten Bildschirms und liest zurück (nur auf dem Amiga testbar);
+  htmlttf.gadget: `src/htmlttf_print.c`,
+  plattformunabhängig; Layout in 1/96 Zoll (gleiche Seitenumbrüche wie PS/PDF), gezeichnet mit
+  `tr_render_strip()` in Druckerpixeln. `make print-ttf` rendert `demo/example.html` mit
+  `test/ttfprint` in 64-Zeilen-Streifen nach `build/print/ttf-<n>.ppm`.
 - Bei einer gewollten Layoutänderung `make check-update` ausführen und die Änderungen an den
   `.expected`-Dateien im Diff prüfen, bevor sie eingecheckt werden.
 - Vor einem Commit: `make` (enthält `charcheck`) und `make check`.

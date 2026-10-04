@@ -35,10 +35,8 @@ void  html_open_diskfont(void);
 BOOL  html_open_datatypes(void);
 BOOL  html_write_clip(const char *text, LONG len);
 
-#ifdef HTML_TTF
 extern struct Library       *CyberGfxBase;
 BOOL  html_open_cybergfx(void);
-#endif
 ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __asm("a1"));
 
 /* amiga.lib replacements (the library links without it) */

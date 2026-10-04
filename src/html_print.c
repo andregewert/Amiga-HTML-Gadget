@@ -568,13 +568,12 @@ static int heading(struct HItem *it)
  * spans of the items that must not be cut are merged; a page ends at
  * the start of the span that reaches over its bottom, or before a
  * heading right above it (a heading stays with its text).           */
-static long *paginate(struct Ctx *c, long height, long *count)
+long *html_print_paginate(struct HLayout *lay, void *pool, long height, long *count)
 {
-    struct HLayout *lay = c->lay;
     struct Span *s;
     long n = 0, m = 0, i, top = 0, np = 0, max, *tops;
 
-    if (!(s = hsys_alloc(c->out.pool, (lay->nitems + 1) * sizeof(*s)))) return NULL;
+    if (!(s = hsys_alloc(pool, (lay->nitems + 1) * sizeof(*s)))) return NULL;
     for (i = 0; i < lay->nitems; i++)
         if (atomic(&lay->items[i]) && lay->items[i].h > 0) {
             s[n].a = lay->items[i].y;
@@ -589,7 +588,7 @@ static long *paginate(struct Ctx *c, long height, long *count)
         } else s[m++] = s[i];
     }
     max = lay->height / (height > 0 ? height : 1) * 2 + m + 2;
-    if (!(tops = hsys_alloc(c->out.pool, max * sizeof(long)))) return NULL;
+    if (!(tops = hsys_alloc(pool, max * sizeof(long)))) return NULL;
     i = 0;
     do {
         long bottom = top + height;
@@ -615,7 +614,7 @@ static long *paginate(struct Ctx *c, long height, long *count)
 }
 
 /* footer text with %p and %n replaced */
-static long footer_text(char *buf, long size, const char *fmt, long page, long pages)
+long html_print_footer(char *buf, long size, const char *fmt, long page, long pages)
 {
     long n = 0;
     while (*fmt && n < size - 12) {
@@ -665,7 +664,7 @@ static void draw_page(struct Ctx *c, const struct HPrintOpts *o, long top, long 
 
     if (o->footer && *o->footer) {
         char text[64];
-        long len = footer_text(text, sizeof(text), o->footer, page, pages);
+        long len = html_print_footer(text, sizeof(text), o->footer, page, pages);
         long size10 = 80, tw = em_width(FAM_SANS, 0, text, len) * size10 / 100;    /* 1/100 pt */
         c->fill = ~0UL;
         c->font = -1;
@@ -986,7 +985,7 @@ long html_print(struct HDoc *doc, const struct HPrintOpts *o, long *pages)
     width = (o->paper_w - o->margin[0] - o->margin[2]) * 4 / 3;
     height = (o->paper_h - o->margin[1] - o->margin[3]) * 4 / 3;
     if (width < 50 || height < 50 || !(c.lay = html_layout(doc, &env, width))) goto out;
-    if (!(tops = paginate(&c, height, &np))) goto out;
+    if (!(tops = html_print_paginate(c.lay, c.out.pool, height, &np))) goto out;
     if (pages) *pages = np;
 
     first = o->first > 0 ? o->first : 1;

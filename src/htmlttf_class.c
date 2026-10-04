@@ -52,6 +52,7 @@
 #include "html_core.h"
 #include "html_private.h"
 #include "html_export.h"
+#include "htmlttf_print.h"
 #include "htmlttf_render.h"
 
 #ifndef RECTFMT_ARGB
@@ -130,6 +131,7 @@ struct HTMLData {
 
     /* output */
     UBYTE            *stack;             /* private stack for FreeType/layout */
+    struct TPrint    *print;             /* HTMLM_PrintBegin .. HTMLM_PrintEnd */
     tr_u32           *strip;
     LONG              stripw;
     UBYTE            *chunky;
@@ -953,6 +955,7 @@ static BOOL set_document(struct HTMLData *d, CONST_STRPTR src, LONG len, CONST_S
     if (d->loadimages) load_images(&il, pa.doc, basedir);
 
     ObtainSemaphore(&d->lock);
+    if (d->print) { tp_end(d->print); d->print = NULL; }       /* belongs to the old document */
     if (d->lay) { html_free_layout(d->lay); d->lay = NULL; }
     html_free_doc(d->doc);
     if (d->source) FreeVec(d->source);
@@ -1243,6 +1246,7 @@ static void om_dispose(Class *cl, Object *o)
     struct HTMLData *d = INST_DATA(cl, o);
 
     release_pens(d);
+    if (d->print) tp_end(d->print);
     if (d->strip) FreeVec(d->strip);
     if (d->chunky) FreeVec(d->chunky);
     if (d->lay) html_free_layout(d->lay);
@@ -1514,6 +1518,82 @@ static LONG export_doc(Class *cl, Object *o, struct hmExport *msg)
     return a.result;
 }
 
+/* ------------------------------------------------------------------ */
+/* bitmap printing                                                     */
+
+struct PrintArgs {
+    struct HTMLData      *d;
+    struct TPrintOpts     opt;
+    struct hmPrintRender *msg;
+    long                  pages, w, h;
+    LONG                  result;
+};
+
+static ULONG print_begin_func(APTR arg)
+{
+    struct PrintArgs *a = arg;
+    struct HTMLData *d = a->d;
+    d->print = tp_begin(d->doc, &d->r, &a->opt, &a->pages, &a->w, &a->h);
+    a->result = d->print ? a->pages : -1;
+    return 0;
+}
+
+static ULONG print_render_func(APTR arg)
+{
+    struct PrintArgs *a = arg;
+    struct hmPrintRender *m = a->msg;
+    a->result = tp_render(a->d->print, m->hmpr_Page, m->hmpr_X, m->hmpr_Y, m->hmpr_Width, m->hmpr_Height,
+                          (tr_u32 *)m->hmpr_Buffer);
+    return 0;
+}
+
+static LONG print_begin(Class *cl, Object *o, struct hmPrintBegin *msg)
+{
+    struct TagItem *tags = msg->hmpb_Tags;
+    LONG *pages = (LONG *)GetTagData(HTMLEX_Pages, 0, tags);
+    LONG *pw = (LONG *)GetTagData(HTMLEX_PageWidth, 0, tags);
+    LONG *ph = (LONG *)GetTagData(HTMLEX_PageHeight, 0, tags);
+    struct PrintArgs a;
+
+    h_memset(&a, 0, sizeof(a));
+    a.d = INST_DATA(cl, o);
+    a.result = -1;
+    a.opt.dpi = GetTagData(HTMLEX_DPI, 150, tags);
+    a.opt.paper_w = GetTagData(HTMLEX_PaperWidth, 595, tags);
+    a.opt.paper_h = GetTagData(HTMLEX_PaperHeight, 842, tags);
+    a.opt.margin[0] = GetTagData(HTMLEX_MarginLeft, 57, tags);
+    a.opt.margin[1] = GetTagData(HTMLEX_MarginTop, 57, tags);
+    a.opt.margin[2] = GetTagData(HTMLEX_MarginRight, 57, tags);
+    a.opt.margin[3] = GetTagData(HTMLEX_MarginBottom, 57, tags);
+    a.opt.font_size = GetTagData(HTMLEX_FontSize, 100, tags);
+    a.opt.backgrounds = GetTagData(HTMLEX_Backgrounds, TRUE, tags) != 0;
+    a.opt.footer = (const char *)GetTagData(HTMLEX_Footer, 0, tags);
+
+    ObtainSemaphore(&a.d->lock);
+    if (a.d->print) tp_end(a.d->print);
+    a.d->print = NULL;
+    if (a.d->doc && a.d->stack) call_big_stack(a.d->stack, print_begin_func, &a);
+    ReleaseSemaphore(&a.d->lock);
+    if (pages) *pages = a.pages;
+    if (pw) *pw = a.w;
+    if (ph) *ph = a.h;
+    return a.result;
+}
+
+/* may run on the printer's task: the semaphore keeps the screen output
+ * away from the shared FreeType faces meanwhile                         */
+static ULONG print_render(Class *cl, Object *o, struct hmPrintRender *msg)
+{
+    struct PrintArgs a;
+    a.d = INST_DATA(cl, o);
+    a.msg = msg;
+    a.result = FALSE;
+    ObtainSemaphore(&a.d->lock);
+    if (a.d->print && a.d->stack) call_big_stack(a.d->stack, print_render_func, &a);
+    ReleaseSemaphore(&a.d->lock);
+    return (ULONG)a.result;
+}
+
 ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __asm("a1"))
 {
     switch (msg->MethodID) {
@@ -1545,6 +1625,18 @@ ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __as
         return gm_goinactive(cl, o, (struct gpGoInactive *)msg);
     case HTMLM_Export:
         return (ULONG)export_doc(cl, o, (struct hmExport *)msg);
+    case HTMLM_PrintBegin:
+        return (ULONG)print_begin(cl, o, (struct hmPrintBegin *)msg);
+    case HTMLM_PrintRender:
+        return print_render(cl, o, (struct hmPrintRender *)msg);
+    case HTMLM_PrintEnd: {
+        struct HTMLData *d = INST_DATA(cl, o);
+        ObtainSemaphore(&d->lock);
+        if (d->print) tp_end(d->print);
+        d->print = NULL;
+        ReleaseSemaphore(&d->lock);
+        return 0;
+    }
     }
     return dsm(cl, o, msg);
 }

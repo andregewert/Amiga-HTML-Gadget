@@ -17,6 +17,9 @@
 #include <exec/memory.h>
 #include <exec/execbase.h>
 #include <dos/dos.h>
+#include <devices/printer.h>
+#include <graphics/rastport.h>
+#include <utility/hooks.h>
 #include <intuition/intuition.h>
 #include <intuition/icclass.h>
 #include <intuition/gadgetclass.h>
@@ -31,6 +34,7 @@
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/intuition.h>
+#include <proto/graphics.h>
 #include <proto/utility.h>
 #include <proto/window.h>
 #include <proto/layout.h>
@@ -63,7 +67,7 @@ struct Library *WindowBase = NULL, *LayoutBase = NULL, *ButtonBase = NULL,
                *ScrollerBase = NULL, *HTMLBase = NULL;
 
 enum { GID_HTML = 1, GID_VSCROLL, GID_HSCROLL, GID_BACK, GID_STATUS };
-enum { MID_BACK = 1, MID_QUIT, MID_COPY, MID_SELALL, MID_PS, MID_PDF };
+enum { MID_BACK = 1, MID_QUIT, MID_COPY, MID_SELALL, MID_PS, MID_PDF, MID_PRINT };
 
 static struct NewMenu menus[] = {
     { NM_TITLE, (STRPTR)"Projekt",          0,   0, 0, 0 },
@@ -71,6 +75,7 @@ static struct NewMenu menus[] = {
     { NM_ITEM,  NM_BARLABEL,                 0,   0, 0, 0 },
     { NM_ITEM,  (STRPTR)"PostScript nach RAM:HTMLDemo.ps", (STRPTR)"P", 0, 0, (APTR)MID_PS },
     { NM_ITEM,  (STRPTR)"PDF nach RAM:HTMLDemo.pdf",       (STRPTR)"D", 0, 0, (APTR)MID_PDF },
+    { NM_ITEM,  (STRPTR)"Drucken (Bitmap)",                0, 0, 0, (APTR)MID_PRINT },
     { NM_ITEM,  NM_BARLABEL,                 0,   0, 0, 0 },
     { NM_ITEM,  (STRPTR)"Beenden",           (STRPTR)"Q", 0, 0, (APTR)MID_QUIT },
     { NM_TITLE, (STRPTR)"Bearbeiten",        0,   0, 0, 0 },
@@ -384,6 +389,110 @@ static void export_doc(BOOL pdf)
     set_status((CONST_STRPTR)msg);
 }
 
+/* Bitmap printing (HTMLM_PrintBegin/Render, V1.2): every page through
+ * printer.device PRD_DUMPRPORTTAGS; the driver asks for the pixels with
+ * DRPA_SourceHook, on its own task. The source is the printed part of
+ * the sheet (content and footer), so the hook adds the offset of that
+ * part. htmlttf.gadget renders at the given resolution, html.gadget at
+ * the one of its bitmap fonts: the size on paper is set in 1/1000 inch
+ * from the paper size, the driver scales.                              */
+struct PrintSrc {
+    LONG page, x0, y0;
+};
+
+static ULONG print_hook(struct Hook *h __asm("a0"), APTR obj __asm("a2"), struct DRPSourceMsg *m __asm("a1"))
+{
+    struct PrintSrc *ps = h->h_Data;
+    return DoMethod(html, HTMLM_PrintRender, ps->page, ps->x0 + m->x, ps->y0 + m->y,
+                    m->width, m->height, (ULONG)m->buf);
+}
+
+static void print_doc(void)
+{
+    static char msg[120];
+    LONG pages = 0, pw = 0, ph = 0, n, page, err = 0;
+    const LONG paper_w = 595, paper_h = 842, margin = 57;      /* A4, 20 mm */
+    struct MsgPort *port;
+    struct IODRPTagsReq *io;
+    struct Hook hook;
+    struct PrintSrc src;
+    struct RastPort rp;
+    struct TagItem tags[] = {
+        { HTMLEX_DPI, 150 },
+        { HTMLEX_Footer, (ULONG)"Seite %p von %n" },
+        { HTMLEX_Pages, 0 },
+        { HTMLEX_PageWidth, 0 },
+        { HTMLEX_PageHeight, 0 },
+        { TAG_DONE, 0 }
+    };
+    struct TagItem drtags[] = {
+        { DRPA_SourceHook, 0 },
+        { DRPA_AspectX, 1 },
+        { DRPA_AspectY, 1 },
+        { TAG_DONE, 0 }
+    };
+
+    tags[2].ti_Data = (ULONG)&pages;
+    tags[3].ti_Data = (ULONG)&pw;
+    tags[4].ti_Data = (ULONG)&ph;
+    if (HTMLBase->lib_Version < 1 || (HTMLBase->lib_Version == 1 && HTMLBase->lib_Revision < 2) ||
+        (n = (LONG)DoMethod(html, HTMLM_PrintBegin, (ULONG)tags)) <= 0) {
+        set_status((CONST_STRPTR)"Bitmap-Druck braucht html.gadget/htmlttf.gadget 1.2");
+        return;
+    }
+    if (!(port = CreateMsgPort())) goto done;
+    if (!(io = (struct IODRPTagsReq *)CreateIORequest(port, sizeof(*io)))) { DeleteMsgPort(port); goto done; }
+    if (OpenDevice((STRPTR)"printer.device", 0, (struct IORequest *)io, 0)) {
+        set_status((CONST_STRPTR)"printer.device nicht verfügbar");
+        DeleteIORequest((struct IORequest *)io);
+        DeleteMsgPort(port);
+        goto end;
+    }
+    InitRastPort(&rp);
+    memset(&hook, 0, sizeof(hook));
+    hook.h_Entry = (ULONG (*)())print_hook;
+    hook.h_Data = &src;
+    drtags[0].ti_Data = (ULONG)&hook;
+    /* printed part: the content area and the bottom margin with the footer */
+    src.x0 = margin * pw / paper_w;
+    src.y0 = margin * ph / paper_h;
+    set_status((CONST_STRPTR)"Drucke ...");
+    for (page = 1; page <= pages && !err; page++) {
+        src.page = page;
+        io->io_Command = PRD_DUMPRPORTTAGS;
+        io->io_RastPort = &rp;
+        io->io_ColorMap = win->WScreen->ViewPort.ColorMap;
+        io->io_Modes = 0;
+        io->io_SrcX = 0;
+        io->io_SrcY = 0;
+        io->io_SrcWidth = pw - 2 * src.x0;
+        io->io_SrcHeight = ph - src.y0;
+        /* the size on paper in 1/1000 inch */
+        io->io_DestCols = (paper_w - 2 * margin) * 1000 / 72;
+        io->io_DestRows = (paper_h - margin) * 1000 / 72;
+        io->io_Special = SPECIAL_MILCOLS | SPECIAL_MILROWS;
+        io->io_TagList = drtags;
+        err = DoIO((struct IORequest *)io);
+    }
+    CloseDevice((struct IORequest *)io);
+    DeleteIORequest((struct IORequest *)io);
+    DeleteMsgPort(port);
+    msg[0] = 0;
+    if (err) {
+        cat_str(msg, "Druckfehler ");
+        cat_num(msg, err);
+    } else {
+        cat_num(msg, pages);
+        cat_str(msg, " Seiten gedruckt");
+    }
+    set_status((CONST_STRPTR)msg);
+    goto end;
+done:
+    set_status((CONST_STRPTR)"Kein Speicher");
+end:
+    DoMethod(html, HTMLM_PrintEnd);
+}
+
 static void page(int dir)
 {
     ULONG vis = 0, lh = 8;
@@ -576,6 +685,7 @@ int main(void)
                     case MID_COPY:   copy_selection(); break;
                     case MID_PS:     export_doc(FALSE); break;
                     case MID_PDF:    export_doc(TRUE); break;
+                    case MID_PRINT:  print_doc(); break;
                     case MID_SELALL:
                         SetGadgetAttrs((struct Gadget *)html, win, NULL, HTML_SelectAll, TRUE, TAG_DONE);
                         break;

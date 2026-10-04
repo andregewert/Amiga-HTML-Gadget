@@ -158,6 +158,9 @@ struct hmExport {
                                                     message: struct HTMLExportProgress;
                                                     return non-zero to stop */
 #define HTMLEX_Pages        (HTMLEX_Dummy + 17)  /* LONG *, gets the number of pages */
+#define HTMLEX_DPI          (HTMLEX_Dummy + 18)  /* LONG, HTMLM_PrintBegin: printer pixels per inch, default 150 */
+#define HTMLEX_PageWidth    (HTMLEX_Dummy + 19)  /* LONG *, HTMLM_PrintBegin: gets the sheet width in pixels */
+#define HTMLEX_PageHeight   (HTMLEX_Dummy + 20)  /* LONG *, HTMLM_PrintBegin: gets the sheet height in pixels */
 
 #define HTMLEXF_PS          0
 #define HTMLEXF_PDF         1
@@ -165,6 +168,35 @@ struct hmExport {
 struct HTMLExportProgress {
     LONG Page;                      /* the page about to be written, from 1 */
     LONG Pages;                     /* pages of the document */
+};
+
+/* Bitmap printing (V1.2): the pages as pixels of the whole sheet, in
+ * any rectangles, e.g. for printer.device PRD_DUMPRPORTTAGS with
+ * DRPA_SourceHook. htmlttf.gadget renders for the printer resolution
+ * (HTMLEX_DPI); html.gadget uses its bitmap fonts at the resolution that
+ * fits their size and must have been shown on a screen that is still
+ * open; HTMLEX_PageWidth/Height tell the size in pixels. HTMLM_PrintBegin lays the document out for the paper
+ * (tags as for HTMLM_Export: paper, margins, font size, backgrounds,
+ * footer, plus HTMLEX_DPI, HTMLEX_Pages, HTMLEX_PageWidth/Height) and
+ * returns the number of pages or -1. HTMLM_PrintRender fills a buffer
+ * with 0x00RRGGBB pixels, TRUE if done; it may be called from another
+ * task (the printer's). HTMLM_PrintEnd frees the print layout; setting
+ * a new document or disposing the gadget does so as well.            */
+#define HTMLM_PrintBegin    (HTML_Dummy + 0x101)
+#define HTMLM_PrintRender   (HTML_Dummy + 0x102)
+#define HTMLM_PrintEnd      (HTML_Dummy + 0x103)
+
+struct hmPrintBegin {
+    ULONG           MethodID;
+    struct TagItem *hmpb_Tags;
+};
+
+struct hmPrintRender {
+    ULONG  MethodID;
+    LONG   hmpr_Page;               /* from 1 */
+    LONG   hmpr_X, hmpr_Y;          /* rectangle on the sheet, in pixels */
+    LONG   hmpr_Width, hmpr_Height;
+    ULONG *hmpr_Buffer;             /* Width * Height pixels 0x00RRGGBB, row by row */
 };
 
 /*****************************************************************************/

@@ -78,7 +78,12 @@ History
    Times, page numbers); text stays text, pictures with their original
    pixels and transparency, pages break between lines and keep headings
    with their text
- - HTMLDemo: export to RAM:HTMLDemo.ps / .pdf from the Project menu;
+ - bitmap printing: HTMLM_PrintBegin/Render/End give the pages as
+   pixels of the sheet, in strips, e.g. for printer.device with
+   DRPA_SourceHook; htmlttf.gadget in the printer's resolution,
+   html.gadget with its bitmap fonts
+ - HTMLDemo: export to RAM:HTMLDemo.ps / .pdf from the Project menu,
+   bitmap printing through printer.device;
    it sets its own stack (32 KB), so it also runs without its icon
  - Autodocs and ReadMe: notes on the stack an application needs and how
    to set it in the code
@@ -125,7 +130,12 @@ Versionsgeschichte
    Schriftgröße, Helvetica oder Times, Seitenzahlen); Text bleibt Text,
    Bilder mit ihren Originalpixeln und Transparenz, Seitenumbrüche
    zwischen Zeilen, Überschriften bleiben bei ihrem Text
- - HTMLDemo: Export nach RAM:HTMLDemo.ps / .pdf im Menü Projekt; es
+ - Bitmap-Druck: HTMLM_PrintBegin/Render/End liefern die Seiten als
+   Pixel des Blatts, in Streifen, z. B. für printer.device mit
+   DRPA_SourceHook; htmlttf.gadget in der Druckerauflösung, html.gadget
+   mit seinen Bitmap-Schriften
+ - HTMLDemo: Export nach RAM:HTMLDemo.ps / .pdf im Menü Projekt,
+   Bitmap-Druck über printer.device; es
    setzt seinen Stack selbst (32 KB) und läuft so auch ohne sein Icon
  - Autodocs und LiesMich: Hinweise zum Stack, den eine Anwendung braucht,
    und wie sie ihn im Code festlegt
