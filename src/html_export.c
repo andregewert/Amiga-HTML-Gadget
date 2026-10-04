@@ -111,6 +111,7 @@ LONG html_export(struct HDoc *doc, Object *gadget, struct TagItem *tags, int fit
 
     h_memset(&o, 0, sizeof(o));
     o.format = GetTagData(HTMLEX_Format, HTMLEXF_PS, tags) == HTMLEXF_PDF ? HP_PDF : HP_PS;
+    o.ps_level = GetTagData(HTMLEX_PSLevel, 2, tags) == 1 ? 1 : 2;
     o.paper_w = GetTagData(HTMLEX_PaperWidth, 595, tags);
     o.paper_h = GetTagData(HTMLEX_PaperHeight, 842, tags);
     o.margin[0] = GetTagData(HTMLEX_MarginLeft, 57, tags);
@@ -198,6 +199,7 @@ int html_export_load_image(const char *path, struct HPrintImage *pi)
     pi->h = h;
     pi->argb = (const unsigned long *)pix;
     pi->priv = pix;
+    html_export_load_jpeg(path, pi);
     return 1;
 }
 
@@ -205,4 +207,35 @@ void html_export_free_image(struct HPrintImage *pi)
 {
     if (pi->priv) FreeVec(pi->priv);
     pi->priv = NULL;
+    html_export_free_jpeg(pi);
+}
+
+/* If 'path' is a JPEG file, its bytes go to pi->jpeg (passed on to the
+ * PDF or PostScript as they are). Returns TRUE if so.                  */
+int html_export_load_jpeg(const char *path, struct HPrintImage *pi)
+{
+    UBYTE head[3], *mem;
+    LONG size;
+    BPTR fh;
+
+    pi->jpeg = NULL;
+    pi->jpeglen = 0;
+    if (!(fh = Open((STRPTR)path, MODE_OLDFILE))) return 0;
+    if (Read(fh, head, 3) == 3 && head[0] == 0xFF && head[1] == 0xD8 && head[2] == 0xFF &&
+        Seek(fh, 0, OFFSET_END) >= 0 && (size = Seek(fh, 0, OFFSET_BEGINNING)) > 3 &&
+        size < 0x1000000 && (mem = AllocVec(size, MEMF_ANY))) {
+        if (Read(fh, mem, size) == size) {
+            pi->jpeg = mem;
+            pi->jpeglen = size;
+        } else FreeVec(mem);
+    }
+    Close(fh);
+    return pi->jpeg != NULL;
+}
+
+void html_export_free_jpeg(struct HPrintImage *pi)
+{
+    if (pi->jpeg) FreeVec((APTR)pi->jpeg);
+    pi->jpeg = NULL;
+    pi->jpeglen = 0;
 }

@@ -5,7 +5,7 @@
 /* host test of the print engine: writes an HTML file as PostScript or
  * PDF (format from the file name)
  *
- *   hostprint <page.html> <out.ps|out.pdf> [serif] [letter] [nobg]
+ *   hostprint <page.html> <out.ps|out.pdf> [serif] [letter] [nobg] [ps1]
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -54,6 +54,13 @@ static int image(void *user, void *img, struct HPrintImage *pi)
     long x, y, w = n->iw, h = n->ih;
     (void)user;
     if (w <= 0 || h <= 0 || !(p = malloc(w * h * sizeof(*p)))) return 0;
+    if (html_attr(n, "noise")) {        /* noise="1": random pixels, alpha in steps */
+        unsigned long r = 12345;
+        for (y = 0; y < h * w; y++) {
+            r = r * 1103515245UL + 12345;
+            p[y] = ((r >> 8) & 0xFFFFFFUL) | ((unsigned long)((y / w) * 255 / h) << 24);
+        }
+    } else
     for (y = 0; y < h; y++)
         for (x = 0; x < w; x++) {
             long dx = 2 * x - w, dy = 2 * y - h, r = w < h ? w : h;
@@ -65,6 +72,17 @@ static int image(void *user, void *img, struct HPrintImage *pi)
     pi->h = h;
     pi->argb = p;
     pi->priv = p;
+    if (html_attr(n, "jpeg")) {         /* jpeg="file": its bytes, passed on as they are */
+        FILE *f = fopen(html_attr(n, "jpeg"), "rb");
+        long len;
+        unsigned char *d;
+        if (f && !fseek(f, 0, SEEK_END) && (len = ftell(f)) > 0 && !fseek(f, 0, SEEK_SET) &&
+            (d = malloc(len)) && fread(d, 1, len, f) == (size_t)len) {
+            pi->jpeg = d;
+            pi->jpeglen = len;
+        }
+        if (f) fclose(f);
+    }
     return 1;
 }
 
@@ -72,6 +90,7 @@ static void image_free(void *user, struct HPrintImage *pi)
 {
     (void)user;
     free(pi->priv);
+    free((void *)pi->jpeg);
 }
 
 static void out(void *user, const char *data, long len)
@@ -89,7 +108,7 @@ int main(int argc, char **argv)
     int i;
 
     if (argc < 3 || !(f = fopen(argv[1], "rb"))) {
-        fprintf(stderr, "usage: hostprint page.html out.ps|out.pdf [serif] [letter] [nobg]\n");
+        fprintf(stderr, "usage: hostprint page.html out.ps|out.pdf [serif] [letter] [nobg] [ps1]\n");
         return 1;
     }
     len = fread(buf, 1, sizeof(buf) - 1, f);
@@ -112,6 +131,7 @@ int main(int argc, char **argv)
         if (!strcmp(argv[i], "serif")) o.serif = 1;
         else if (!strcmp(argv[i], "letter")) { o.paper_w = 612; o.paper_h = 792; }
         else if (!strcmp(argv[i], "nobg")) o.backgrounds = 0;
+        else if (!strcmp(argv[i], "ps1")) o.ps_level = 1;
     }
     o.write = out;
     o.image = image;

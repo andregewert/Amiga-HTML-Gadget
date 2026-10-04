@@ -1492,7 +1492,13 @@ static int export_image(void *user, void *img, struct HPrintImage *pi)
     pi->h = im->h;
     pi->argb = (const unsigned long *)im->pix;
     pi->priv = NULL;
+    html_export_load_jpeg(im->path, pi);
     return 1;
+}
+
+static void export_image_free(void *user, struct HPrintImage *pi)
+{
+    html_export_free_jpeg(pi);
 }
 
 struct ExportArgs {
@@ -1505,7 +1511,7 @@ struct ExportArgs {
 static ULONG export_func(APTR arg)
 {
     struct ExportArgs *a = arg;
-    a->result = html_export(a->d->doc, a->o, a->tags, a->d->env.fit_images, export_image, NULL, a->d);
+    a->result = html_export(a->d->doc, a->o, a->tags, a->d->env.fit_images, export_image, export_image_free, a->d);
     return 0;
 }
 

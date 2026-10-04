@@ -141,12 +141,16 @@ html.gadget/HTML_Visible
 
    FUNCTION
     Lays the document out again for the paper and writes it to a DOS file
-    handle: PostScript (level 1, the page size is set with setpagedevice
-    where available) or PDF 1.4. The standard PostScript fonts are used
+    handle: PostScript (level 2, or level 1 for old printers; the page size
+    is set with setpagedevice where available) or PDF 1.4. The standard PostScript fonts are used
     (Helvetica or Times for text, Courier for <pre>, <tt> etc.), so text
     stays text and no fonts are embedded; the characters are ISO-8859-1.
     Pictures are included with their original pixels (PDF: with their
-    transparency), tiled background pictures are not printed. Pages are
+    transparency), tiled background pictures are not printed. They are
+    compressed: PDF with LZW and PNG predictors, PostScript level 2 with
+    LZW in ASCII85; JPEG files are passed on as they are (PDF: all, level
+    2: baseline JPEGs). PostScript level 1 has them uncompressed in hex,
+    several times as big. Pages are
     broken where no text line, picture or rule is cut, a heading stays
     with the text after it.
 
@@ -158,6 +162,9 @@ html.gadget/HTML_Visible
     HTMLEX_File (BPTR) - the output, opened with MODE_NEWFILE; a file,
         PRT: or a PostScript handler. Required.
     HTMLEX_Format (ULONG) - HTMLEXF_PS (default) or HTMLEXF_PDF.
+    HTMLEX_PSLevel (LONG) - PostScript level 2 (default) or 1. Level 1
+        only for printers or interpreters without level 2 (before about
+        1992); Ghostscript and TurboPrint understand level 2. (V1.2)
     HTMLEX_PaperWidth, HTMLEX_PaperHeight (LONG) - paper size in points
         (1/72 inch), default A4 (595 x 842).
     HTMLEX_MarginLeft, HTMLEX_MarginTop, HTMLEX_MarginRight,

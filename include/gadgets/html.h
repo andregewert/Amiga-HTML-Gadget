@@ -172,6 +172,9 @@ struct hmExport {
 #define HTMLEX_DPI          (HTMLEX_Dummy + 18)  /* LONG, HTMLM_PrintBegin: printer pixels per inch, default 150 */
 #define HTMLEX_PageWidth    (HTMLEX_Dummy + 19)  /* LONG *, HTMLM_PrintBegin: gets the sheet width in pixels */
 #define HTMLEX_PageHeight   (HTMLEX_Dummy + 20)  /* LONG *, HTMLM_PrintBegin: gets the sheet height in pixels */
+#define HTMLEX_PSLevel      (HTMLEX_Dummy + 21)  /* LONG PostScript level 1 or 2, default 2: level 2
+                                                  * compresses pictures (LZW, ASCII85, JPEG files
+                                                  * as they are), level 1 writes them in hex      */
 
 #define HTMLEXF_PS          0
 #define HTMLEXF_PDF         1

@@ -16,7 +16,11 @@
  * Pictures: the pixels come from the image callback as ARGB. PDF gets an
  * image object per picture (transparency as soft mask), PostScript the
  * pixels with colorimage at every place, composed onto white. Tiled
- * background pictures are not printed.
+ * background pictures are not printed. Compression: PDF LZW with PNG
+ * predictors, PostScript level 2 LZW in ASCII85 (no predictors before
+ * level 3), level 1 plain hex. JPEG files (HPrintImage.jpeg) are passed
+ * on as they are with DCTDecode: in PDF and in PostScript level 2, there
+ * only baseline JPEGs (progressive ones need level 3).
  *
  * No C library is used apart from the memory hooks of the core.
  *
@@ -63,6 +67,8 @@ struct Ctx {
     const struct HPrintOpts *opt;
     void          **imgs;           /* PDF: the pictures with an image object */
     long            nimgs;
+    long           *lzwkey;         /* LZW hash table, allocated when needed */
+    short          *lzwcode;
     struct HDoc    *doc;
     struct HLayout *lay;
     int             prop;           /* family of proportional text */
@@ -431,6 +437,189 @@ static void put_hex(struct Out *w, unsigned v)
     putc_(w, hex[v & 15]);
 }
 
+/*****************************************************************************/
+/* compression: LZW (PDF and PostScript level 2), ASCII85 (PostScript)       */
+
+#define LZW_HSIZE 5021              /* prime, > 4096 / 0.8 */
+
+struct Enc {
+    struct Out   *w;
+    int           a85;              /* bytes go through ASCII85 */
+    unsigned long tuple;
+    int           tn, col;
+    long         *key;
+    short        *code;
+    unsigned long bits;
+    int           nbits, width;
+    long          next, prefix;
+};
+
+static void a85_group(struct Enc *e, int n)
+{
+    char d[5];
+    unsigned long t = e->tuple & 0xFFFFFFFFUL;
+    int i;
+
+    if (n == 4 && !t) {
+        putc_(e->w, 'z');
+        e->col++;
+    } else {
+        for (i = 4; i >= 0; i--) { d[i] = (char)('!' + t % 85); t /= 85; }
+        for (i = 0; i <= n; i++) putc_(e->w, d[i]);
+        e->col += n + 1;
+    }
+    if (e->col >= 75) { putc_(e->w, '\n'); e->col = 0; }
+    e->tuple = 0;
+    e->tn = 0;
+}
+
+static void enc_byte(struct Enc *e, unsigned c)
+{
+    if (!e->a85) { putc_(e->w, (char)c); return; }
+    e->tuple = (e->tuple << 8 | (c & 255)) & 0xFFFFFFFFUL;
+    if (++e->tn == 4) a85_group(e, 4);
+}
+
+static void a85_end(struct Enc *e)
+{
+    int n = e->tn;
+    if (n) {
+        e->tuple = (e->tuple << (8 * (4 - n))) & 0xFFFFFFFFUL;
+        a85_group(e, n);
+    }
+    puts_(e->w, "~>\n");
+}
+
+static void lzw_put(struct Enc *e, long code)
+{
+    e->bits = (e->bits << e->width | (unsigned long)code) & 0xFFFFFFUL;
+    e->nbits += e->width;
+    while (e->nbits >= 8) {
+        e->nbits -= 8;
+        enc_byte(e, (unsigned)(e->bits >> e->nbits) & 255);
+    }
+}
+
+static void lzw_reset(struct Enc *e)
+{
+    long i;
+    for (i = 0; i < LZW_HSIZE; i++) e->key[i] = -1;
+    e->width = 9;
+    e->next = 258;
+}
+
+/* the encoder of LZWDecode with EarlyChange 1: the decoder adds a code
+ * one step later than the encoder, so the width grows when the next
+ * code no longer fits                                                  */
+static int lzw_begin(struct Ctx *c, struct Enc *e, int a85)
+{
+    if (!c->lzwkey) {
+        c->lzwkey = hsys_alloc(c->out.pool, LZW_HSIZE * sizeof(long));
+        c->lzwcode = hsys_alloc(c->out.pool, LZW_HSIZE * sizeof(short));
+        if (!c->lzwkey || !c->lzwcode) { c->lzwkey = 0; c->out.oom = 1; return 0; }
+    }
+    e->w = &c->out;
+    e->a85 = a85;
+    e->tuple = 0;
+    e->tn = e->col = 0;
+    e->key = c->lzwkey;
+    e->code = c->lzwcode;
+    e->bits = 0;
+    e->nbits = 0;
+    e->prefix = -1;
+    lzw_reset(e);
+    lzw_put(e, 256);                /* clear table */
+    return 1;
+}
+
+static void lzw_byte(struct Enc *e, unsigned ch)
+{
+    long k, h;
+
+    ch &= 255;
+    if (e->prefix < 0) { e->prefix = ch; return; }
+    k = e->prefix << 8 | ch;
+    h = (long)((ch << 4) ^ (unsigned long)e->prefix) % LZW_HSIZE;
+    while (e->key[h] >= 0) {
+        if (e->key[h] == k) { e->prefix = e->code[h]; return; }
+        if (++h == LZW_HSIZE) h = 0;
+    }
+    lzw_put(e, e->prefix);
+    e->key[h] = k;
+    e->code[h] = (short)e->next++;
+    if (e->next >= 4094) {          /* table full: start again */
+        lzw_put(e, 256);
+        lzw_reset(e);
+    } else if (e->next >= (1L << e->width) && e->width < 12) e->width++;
+    e->prefix = ch;
+}
+
+static void lzw_end(struct Enc *e)
+{
+    if (e->prefix >= 0) {
+        lzw_put(e, e->prefix);
+        if (++e->next >= (1L << e->width) && e->width < 12) e->width++;
+    }
+    lzw_put(e, 257);                /* end of data */
+    if (e->nbits) enc_byte(e, (unsigned)(e->bits << (8 - e->nbits)) & 255);
+    if (e->a85) a85_end(e);
+}
+
+/* JPEG files written as they are: size and components from the frame
+ * header. 1 or 3 components (grey, YCbCr), 8 bit, baseline or
+ * extended (SOF0/1), progressive (SOF2) only if allowed.             */
+static int jpeg_info(const unsigned char *d, long len, int progressive_ok, long *w, long *h, int *comps)
+{
+    long i = 2, seg;
+
+    if (!d || len < 4 || d[0] != 0xFF || d[1] != 0xD8) return 0;
+    while (i + 4 <= len) {
+        unsigned m;
+        if (d[i] != 0xFF) return 0;
+        m = d[i + 1];
+        if (m == 0xFF) { i++; continue; }           /* fill byte */
+        if (m == 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
+        seg = (long)d[i + 2] << 8 | d[i + 3];
+        if (seg < 2 || i + 2 + seg > len) return 0;
+        if (m == 0xC0 || m == 0xC1 || (m == 0xC2 && progressive_ok)) {
+            if (seg < 8 || d[i + 4] != 8) return 0;
+            *h = (long)d[i + 5] << 8 | d[i + 6];
+            *w = (long)d[i + 7] << 8 | d[i + 8];
+            *comps = d[i + 9];
+            return *w > 0 && *h > 0 && (*comps == 1 || *comps == 3);
+        }
+        if ((m >= 0xC2 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) || m == 0xDA || m == 0xD9)
+            return 0;               /* other coding, or no frame before the scan */
+        i += 2 + seg;
+    }
+    return 0;
+}
+
+/* the picture of an item from the callback; FALSE if not there */
+static int get_image(struct Ctx *c, void *img, struct HPrintImage *pi)
+{
+    const struct HPrintOpts *o = c->opt;
+
+    pi->w = pi->h = 0;
+    pi->argb = 0;
+    pi->priv = 0;
+    pi->jpeg = 0;
+    pi->jpeglen = 0;
+    if (!img || !o->image || !o->image(o->user, img, pi)) return 0;
+    if (pi->w <= 0 || pi->h <= 0 || !pi->argb) {
+        if (o->image_free) o->image_free(o->user, pi);
+        return 0;
+    }
+    return 1;
+}
+
+/* a pixel composed onto white, byte k (0 = red) */
+static unsigned on_white(unsigned long v, int k)
+{
+    unsigned a = (unsigned)(v >> 24) & 255, white = 255 * (255 - a) + 127;
+    return (((unsigned)(v >> (16 - 8 * k)) & 255) * a + white) / 255;
+}
+
 /* index of a picture with a PDF image object, -1 if none */
 static long pdf_image(struct Ctx *c, void *img)
 {
@@ -446,18 +635,13 @@ static int draw_image(struct Ctx *c, struct HItem *it)
     const struct HPrintOpts *o = c->opt;
     struct Out *w = &c->out;
     struct HPrintImage pi;
-    long k = -1, x, y;
+    struct Enc e;
+    long k = -1, x, y, jw, jh;
+    int comps;
 
     if (!it->img || !o->image) return 0;
     if (o->format == HP_PDF && (k = pdf_image(c, it->img)) < 0) return 0;
-    if (o->format != HP_PDF) {
-        pi.w = pi.h = 0; pi.argb = 0; pi.priv = 0;
-        if (!o->image(o->user, it->img, &pi)) return 0;
-        if (pi.w <= 0 || pi.h <= 0 || !pi.argb) {
-            if (o->image_free) o->image_free(o->user, &pi);
-            return 0;
-        }
-    }
+    if (o->format != HP_PDF && !get_image(c, it->img, &pi)) return 0;
     puts_(w, "q ");
     put_fix(w, it->w * 75); puts_(w, " 0 0 ");
     put_fix(w, it->h * 75); putc_(w, ' ');
@@ -469,23 +653,50 @@ static int draw_image(struct Ctx *c, struct HItem *it)
         puts_(w, " Do Q\n");
         return 1;
     }
-    /* PostScript: the pixels in hex, composed onto white */
-    puts_(w, "/HProw "); put_long(w, pi.w * 3); puts_(w, " string def\n");
-    put_long(w, pi.w); putc_(w, ' '); put_long(w, pi.h);
-    puts_(w, " 8 ["); put_long(w, pi.w); puts_(w, " 0 0 "); put_long(w, -pi.h);
-    puts_(w, " 0 "); put_long(w, pi.h);
-    puts_(w, "] {currentfile HProw readhexstring pop} false 3 colorimage\n");
-    for (y = 0; y < pi.h; y++) {
-        const unsigned long *p = pi.argb + y * pi.w;
-        for (x = 0; x < pi.w; x++) {
-            unsigned long v = p[x];
-            unsigned a = v >> 24, white = 255 * (255 - a) + 127;
-            put_hex(w, ((v >> 16 & 255) * a + white) / 255);
-            put_hex(w, ((v >> 8 & 255) * a + white) / 255);
-            put_hex(w, ((v & 255) * a + white) / 255);
-            if ((x & 15) == 15) putc_(w, '\n');
+    if (o->ps_level != 1 && jpeg_info(pi.jpeg, pi.jpeglen, 0, &jw, &jh, &comps)) {
+        /* level 2: the JPEG file as it is */
+        puts_(w, "/HPa currentfile /ASCII85Decode filter def /HPf HPa /DCTDecode filter def\n");
+        put_long(w, jw); putc_(w, ' '); put_long(w, jh);
+        puts_(w, " 8 ["); put_long(w, jw); puts_(w, " 0 0 "); put_long(w, -jh);
+        puts_(w, " 0 "); put_long(w, jh);
+        puts_(w, comps == 3 ? "] HPf false 3 colorimage\n" : "] HPf image\n");
+        e.w = w;
+        e.a85 = 1;
+        e.tuple = 0;
+        e.tn = e.col = 0;
+        for (x = 0; x < pi.jpeglen; x++) enc_byte(&e, pi.jpeg[x]);
+        a85_end(&e);
+        puts_(w, "HPf flushfile HPa flushfile\n");
+    } else if (o->ps_level != 1) {
+        /* level 2: LZW in ASCII85, composed onto white */
+        puts_(w, "/HPa currentfile /ASCII85Decode filter def /HPf HPa /LZWDecode filter def\n");
+        put_long(w, pi.w); putc_(w, ' '); put_long(w, pi.h);
+        puts_(w, " 8 ["); put_long(w, pi.w); puts_(w, " 0 0 "); put_long(w, -pi.h);
+        puts_(w, " 0 "); put_long(w, pi.h);
+        puts_(w, "] HPf false 3 colorimage\n");
+        if (lzw_begin(c, &e, 1)) {
+            for (y = 0; y < pi.w * pi.h; y++)
+                for (x = 0; x < 3; x++) lzw_byte(&e, on_white(pi.argb[y], (int)x));
+            lzw_end(&e);
         }
-        putc_(w, '\n');
+        puts_(w, "HPf flushfile HPa flushfile\n");
+    } else {
+        /* level 1: the pixels in hex, composed onto white */
+        puts_(w, "/HProw "); put_long(w, pi.w * 3); puts_(w, " string def\n");
+        put_long(w, pi.w); putc_(w, ' '); put_long(w, pi.h);
+        puts_(w, " 8 ["); put_long(w, pi.w); puts_(w, " 0 0 "); put_long(w, -pi.h);
+        puts_(w, " 0 "); put_long(w, pi.h);
+        puts_(w, "] {currentfile HProw readhexstring pop} false 3 colorimage\n");
+        for (y = 0; y < pi.h; y++) {
+            const unsigned long *p = pi.argb + y * pi.w;
+            for (x = 0; x < pi.w; x++) {
+                put_hex(w, on_white(p[x], 0));
+                put_hex(w, on_white(p[x], 1));
+                put_hex(w, on_white(p[x], 2));
+                if ((x & 15) == 15) putc_(w, '\n');
+            }
+            putc_(w, '\n');
+        }
     }
     puts_(w, "Q\n");
     if (o->image_free) o->image_free(o->user, &pi);
@@ -705,6 +916,7 @@ static void write_ps(struct Ctx *c, const struct HPrintOpts *o, long *tops, long
     long p, i;
 
     puts_(w, "%!PS-Adobe-3.0\n%%Creator: html.gadget\n");
+    if (o->ps_level != 1) puts_(w, "%%LanguageLevel: 2\n");
     if (o->title) {
         for (i = 0; o->title[i]; i++) ;
         puts_(w, "%%Title: ");
@@ -773,65 +985,130 @@ static void collect_images(struct Ctx *c)
     }
 }
 
-/* Image object 'num' (and its soft mask num + 1 if the picture is not
- * opaque). FALSE if the pixels are not available.                    */
+/* the stream of an image object, its length as object num + 1 */
+static void pdf_stream_begin(struct Out *w, long num, long *start)
+{
+    puts_(w, " /Length ");
+    put_long(w, num + 1);
+    puts_(w, " 0 R >>\nstream\n");
+    flush(w);
+    *start = w->pos;
+}
+
+static void pdf_stream_end(struct Out *w, long *offs, long num, long start)
+{
+    long len;
+    flush(w);
+    len = w->pos - start;
+    puts_(w, "\nendstream\nendobj\n");
+    pdf_obj(w, offs, num + 1);
+    put_long(w, len);
+    puts_(w, "\nendobj\n");
+}
+
+/* rows with PNG predictors (per row the best of None, Sub and Up), LZW:
+ * 'bpp' bytes per pixel, 3 = RGB, 1 = the alpha channel               */
+static void pdf_lzw_rows(struct Ctx *c, const struct HPrintImage *pi, int bpp)
+{
+    struct Enc e;
+    unsigned char *cur, *prev, *t;
+    long rowlen = pi->w * bpp, x, y, i;
+
+    if (!(cur = hsys_alloc(c->out.pool, 2 * rowlen)) || !lzw_begin(c, &e, 0)) { c->out.oom = 1; return; }
+    prev = cur + rowlen;
+    for (i = 0; i < rowlen; i++) prev[i] = 0;
+    for (y = 0; y < pi->h; y++) {
+        const unsigned long *p = pi->argb + y * pi->w;
+        unsigned long sum_none = 0, sum_sub = 0, sum_up = 0;
+        int f;
+        for (x = 0; x < pi->w; x++) {
+            unsigned long v = p[x];
+            if (bpp == 3) {
+                cur[3 * x] = (unsigned char)(v >> 16);
+                cur[3 * x + 1] = (unsigned char)(v >> 8);
+                cur[3 * x + 2] = (unsigned char)v;
+            } else cur[x] = (unsigned char)(v >> 24);
+        }
+        for (i = 0; i < rowlen; i++) {
+            signed char s = (signed char)(cur[i] - (i >= bpp ? cur[i - bpp] : 0));
+            signed char u = (signed char)(cur[i] - prev[i]);
+            signed char n = (signed char)cur[i];
+            sum_sub += s < 0 ? -s : s;
+            sum_up += u < 0 ? -u : u;
+            sum_none += n < 0 ? -n : n;
+        }
+        f = sum_up <= sum_sub && sum_up <= sum_none ? 2 : sum_sub <= sum_none ? 1 : 0;
+        lzw_byte(&e, (unsigned)f);
+        for (i = 0; i < rowlen; i++)
+            lzw_byte(&e, f == 2 ? (unsigned)(cur[i] - prev[i]) & 255 :
+                         f == 1 ? (unsigned)(cur[i] - (i >= bpp ? cur[i - bpp] : 0)) & 255 : cur[i]);
+        t = prev; prev = cur; cur = t;
+    }
+    lzw_end(&e);
+}
+
+/* Image object 'num' with its length num + 1, and its soft mask num + 2
+ * (length num + 3) if the picture is not opaque. JPEG files are written
+ * as they are. FALSE if the pixels are not available.                */
 static int pdf_image_obj(struct Ctx *c, long *offs, long num, void *img)
 {
     const struct HPrintOpts *o = c->opt;
     struct Out *w = &c->out;
     struct HPrintImage pi;
-    long i, n;
-    int alpha = 0;
+    long i, n, start, jw, jh;
+    int alpha = 0, comps;
 
-    pi.w = pi.h = 0; pi.argb = 0; pi.priv = 0;
-    if (!o->image(o->user, img, &pi)) return 0;
+    if (!get_image(c, img, &pi)) return 0;
     n = pi.w * pi.h;
-    if (pi.w <= 0 || pi.h <= 0 || !pi.argb) {
-        if (o->image_free) o->image_free(o->user, &pi);
-        return 0;
-    }
-    for (i = 0; i < n && !alpha; i++) alpha = (pi.argb[i] >> 24) != 255;
-
     pdf_obj(w, offs, num);
     puts_(w, "<< /Type /XObject /Subtype /Image /Width ");
-    put_long(w, pi.w);
-    puts_(w, " /Height ");
-    put_long(w, pi.h);
-    puts_(w, " /ColorSpace /DeviceRGB /BitsPerComponent 8");
-    if (alpha) {
-        puts_(w, " /SMask ");
-        put_long(w, num + 1);
-        puts_(w, " 0 R");
-    }
-    puts_(w, " /Length ");
-    put_long(w, n * 3);
-    puts_(w, " >>\nstream\n");
-    for (i = 0; i < n; i++) {
-        unsigned long v = pi.argb[i];
-        putc_(w, (char)(v >> 16));
-        putc_(w, (char)(v >> 8));
-        putc_(w, (char)v);
-    }
-    puts_(w, "\nendstream\nendobj\n");
-    if (alpha) {
-        pdf_obj(w, offs, num + 1);
-        puts_(w, "<< /Type /XObject /Subtype /Image /Width ");
+    if (jpeg_info(pi.jpeg, pi.jpeglen, 1, &jw, &jh, &comps)) {
+        put_long(w, jw);
+        puts_(w, " /Height ");
+        put_long(w, jh);
+        puts_(w, comps == 3 ? " /ColorSpace /DeviceRGB" : " /ColorSpace /DeviceGray");
+        puts_(w, " /BitsPerComponent 8 /Filter /DCTDecode");
+        pdf_stream_begin(w, num, &start);
+        flush(w);
+        o->write(o->user, (const char *)pi.jpeg, pi.jpeglen);
+        w->pos += pi.jpeglen;
+        pdf_stream_end(w, offs, num, start);
+    } else {
+        for (i = 0; i < n && !alpha; i++) alpha = (pi.argb[i] >> 24 & 255) != 255;
         put_long(w, pi.w);
         puts_(w, " /Height ");
         put_long(w, pi.h);
-        puts_(w, " /ColorSpace /DeviceGray /BitsPerComponent 8 /Length ");
-        put_long(w, n);
-        puts_(w, " >>\nstream\n");
-        for (i = 0; i < n; i++) putc_(w, (char)(pi.argb[i] >> 24));
-        puts_(w, "\nendstream\nendobj\n");
+        puts_(w, " /ColorSpace /DeviceRGB /BitsPerComponent 8");
+        if (alpha) {
+            puts_(w, " /SMask ");
+            put_long(w, num + 2);
+            puts_(w, " 0 R");
+        }
+        puts_(w, " /Filter /LZWDecode /DecodeParms << /Predictor 15 /Colors 3 /Columns ");
+        put_long(w, pi.w);
+        puts_(w, " >>");
+        pdf_stream_begin(w, num, &start);
+        pdf_lzw_rows(c, &pi, 3);
+        pdf_stream_end(w, offs, num, start);
+        if (alpha) {
+            pdf_obj(w, offs, num + 2);
+            puts_(w, "<< /Type /XObject /Subtype /Image /Width ");
+            put_long(w, pi.w);
+            puts_(w, " /Height ");
+            put_long(w, pi.h);
+            puts_(w, " /ColorSpace /DeviceGray /BitsPerComponent 8");
+            puts_(w, " /Filter /LZWDecode /DecodeParms << /Predictor 15 /Colors 1 /Columns ");
+            put_long(w, pi.w);
+            puts_(w, " >>");
+            pdf_stream_begin(w, num + 2, &start);
+            pdf_lzw_rows(c, &pi, 1);
+            pdf_stream_end(w, offs, num + 2, start);
+        }
     }
     if (o->image_free) o->image_free(o->user, &pi);
     return 1;
 }
 
-/* Objects: 1 catalog, 2 page tree, 3 info, 4 resources, 5-16 fonts,
- * then two per picture (image, soft mask), then two per page (page,
- * contents). Numbers of objects not written are free in the xref.    */
 static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, long np, long height,
                       long first, long last)
 {
@@ -839,14 +1116,14 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
     long count = last - first + 1, pg, nobj, *offs, p, i, k, xref;
 
     if (o->image) collect_images(c);
-    pg = 17 + 2 * c->nimgs;
+    pg = 17 + 4 * c->nimgs;
     nobj = pg - 1 + 2 * count;
     if (!(offs = hsys_alloc(w->pool, (nobj + 1) * sizeof(long)))) { w->oom = 1; return; }
     puts_(w, "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n");
 
     /* pictures first: those without pixels are taken out of the list */
     for (i = k = 0; i < c->nimgs; i++) {
-        if (pdf_image_obj(c, offs, 17 + 2 * k, c->imgs[i])) c->imgs[k++] = c->imgs[i];
+        if (pdf_image_obj(c, offs, 17 + 4 * k, c->imgs[i])) c->imgs[k++] = c->imgs[i];
         if (w->oom) return;
     }
     c->nimgs = k;
@@ -887,7 +1164,7 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
             puts_(w, " /Im");
             put_long(w, i + 1);
             putc_(w, ' ');
-            put_long(w, 17 + 2 * i);
+            put_long(w, 17 + 4 * i);
             puts_(w, " 0 R");
         }
         puts_(w, " >>");

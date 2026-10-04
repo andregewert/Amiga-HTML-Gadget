@@ -3,8 +3,10 @@
  *
  * Lays the document out again with the metrics of the standard PostScript
  * fonts (Helvetica or Times, Courier) for the width of the paper, breaks
- * it into pages and writes PostScript (level 1 with optional level 2
- * page size) or PDF 1.4. Text stays text, no fonts are embedded; the
+ * it into pages and writes PostScript (level 2, or level 1 with optional
+ * level 2 page size) or PDF 1.4. Pictures are compressed (LZW, in PDF
+ * with PNG predictors; JPEG files are passed on as they are), except in
+ * PostScript level 1. Text stays text, no fonts are embedded; the
  * characters are ISO-8859-1. Platform independent like the rest of the
  * core: the output goes through a callback.
  *
@@ -27,10 +29,17 @@ struct HPrintImage {
     long                 w, h;      /* size in pixels */
     const unsigned long *argb;      /* w * h pixels 0xAARRGGBB, row by row; A = 255: opaque */
     void                *priv;      /* for the callback */
+    /* optional: the bytes of the picture's file if it is a JPEG; written
+     * as it is (DCTDecode) when the format allows it, argb is the
+     * fallback                                                         */
+    const unsigned char *jpeg;
+    long                 jpeglen;
 };
 
 struct HPrintOpts {
     int         format;             /* HP_PS or HP_PDF */
+    int         ps_level;           /* PostScript level 1 or 2 (0 = 2): level 1 has
+                                     * uncompressed pictures in hex           */
     long        paper_w, paper_h;   /* paper size in points (A4: 595 x 842) */
     long        margin[4];          /* left, top, right, bottom in points */
     long        font_size;          /* normal text size in 1/10 points (100 = 10 pt) */
