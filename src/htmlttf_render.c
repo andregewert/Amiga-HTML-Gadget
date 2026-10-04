@@ -348,7 +348,15 @@ void tr_render_strip(struct TRender *r, struct HLayout *lay, int syscolors, stru
 
     for (i = 0; i < lay->nitems; i++) {
         struct HItem *it = &lay->items[i];
-        if (it->y >= ybot || it->y + it->h <= ytop || it->x >= xr || it->x + it->w <= xl) continue;
+        if (it->type == IT_TEXT) {
+            /* the underline may lie below the box and reach to the next
+             * word, glyphs may stick out: a margin of one line height   */
+            if (it->y >= ybot || it->y + 2 * it->h <= ytop || it->x >= xr) continue;
+        } else if (it->type == IT_BULLET) {
+            /* drawn it->w high; it->h may be a pixel less after scaling */
+            long sz = it->w > it->h ? it->w : it->h;
+            if (it->y >= ybot || it->y + sz <= ytop || it->x >= xr || it->x + sz <= xl) continue;
+        } else if (it->y >= ybot || it->y + it->h <= ytop || it->x >= xr || it->x + it->w <= xl) continue;
 
         switch (it->type) {
         case IT_TEXT: {
