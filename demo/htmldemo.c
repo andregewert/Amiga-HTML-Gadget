@@ -391,11 +391,13 @@ static void export_doc(BOOL pdf)
 
 /* Bitmap printing (HTMLM_PrintBegin/Render, V1.2): every page through
  * printer.device PRD_DUMPRPORTTAGS; the driver asks for the pixels with
- * DRPA_SourceHook, on its own task. The source is the printed part of
- * the sheet (content and footer), so the hook adds the offset of that
- * part. htmlttf.gadget renders at the given resolution, html.gadget at
- * the one of its bitmap fonts: the size on paper is set in 1/1000 inch
- * from the paper size, the driver scales.                              */
+ * DRPA_SourceHook, on its own task. The source is the whole sheet with
+ * its margins, its size on paper is given in 1/1000 inch (FULLCOLS and
+ * FULLROWS depend on the limits in the printer preferences); the driver
+ * puts it at the start of its printable area. htmlttf.gadget renders at
+ * the given resolution, html.gadget at the one of its bitmap fonts; the
+ * driver scales. The request is sent asynchronously, so the window keeps
+ * scrolling meanwhile; Esc or the close gadget stop printing.          */
 struct PrintSrc {
     LONG page, x0, y0;
 };
@@ -407,11 +409,49 @@ static ULONG print_hook(struct Hook *h __asm("a0"), APTR obj __asm("a2"), struct
                     m->width, m->height, (ULONG)m->buf);
 }
 
+static void page(int dir);
+
+/* window input while printing: scrolling only; TRUE to stop printing */
+static BOOL print_input(void)
+{
+    ULONG result;
+    UWORD code;
+    BOOL stop = FALSE;
+
+    while ((result = DoMethod(winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
+        switch (result & WMHI_CLASSMASK) {
+        case WMHI_CLOSEWINDOW:
+            stop = TRUE;
+            break;
+        case WMHI_NEWSIZE:
+            sync_hscroll();
+            break;
+        case WMHI_VANILLAKEY:
+            if ((result & WMHI_KEYMASK) == 27) stop = TRUE;           /* Esc */
+            else if ((result & WMHI_KEYMASK) == ' ') page(1);
+            break;
+        case WMHI_RAWKEY:
+            switch (result & WMHI_KEYMASK) {
+            case 0x4C: scroll_by(-16, 0); break;
+            case 0x4D: scroll_by(16, 0); break;
+            case 0x7A: scroll_by(-32, 0); break;
+            case 0x7B: scroll_by(32, 0); break;
+            case 0x3F: page(-1); break;
+            case 0x1F: page(1); break;
+            }
+            break;
+        }
+    }
+    return stop;
+}
+
 static void print_doc(void)
 {
     static char msg[120];
-    LONG pages = 0, pw = 0, ph = 0, n, page, err = 0;
-    const LONG paper_w = 595, paper_h = 842, margin = 57;      /* A4, 20 mm */
+    LONG pages = 0, pw = 0, ph = 0, n, pg, err = 0;
+    const LONG paper_w = 595, paper_h = 842;    /* A4 in points, the gadget's default */
+    ULONG winsig = 0;
+    BOOL stopped = FALSE;
     struct MsgPort *port;
     struct IODRPTagsReq *io;
     struct Hook hook;
@@ -453,32 +493,40 @@ static void print_doc(void)
     hook.h_Entry = (ULONG (*)())print_hook;
     hook.h_Data = &src;
     drtags[0].ti_Data = (ULONG)&hook;
-    /* printed part: the content area and the bottom margin with the footer */
-    src.x0 = margin * pw / paper_w;
-    src.y0 = margin * ph / paper_h;
-    set_status((CONST_STRPTR)"Drucke ...");
-    for (page = 1; page <= pages && !err; page++) {
-        src.page = page;
+    src.x0 = src.y0 = 0;                        /* the whole sheet */
+    GetAttr(WINDOW_SigMask, winobj, &winsig);
+    set_status((CONST_STRPTR)"Drucke ... (Esc bricht ab)");
+    for (pg = 1; pg <= pages && !err && !stopped; pg++) {
+        src.page = pg;
         io->io_Command = PRD_DUMPRPORTTAGS;
         io->io_RastPort = &rp;
         io->io_ColorMap = win->WScreen->ViewPort.ColorMap;
         io->io_Modes = 0;
         io->io_SrcX = 0;
         io->io_SrcY = 0;
-        io->io_SrcWidth = pw - 2 * src.x0;
-        io->io_SrcHeight = ph - src.y0;
-        /* the size on paper in 1/1000 inch */
-        io->io_DestCols = (paper_w - 2 * margin) * 1000 / 72;
-        io->io_DestRows = (paper_h - margin) * 1000 / 72;
+        io->io_SrcWidth = pw;
+        io->io_SrcHeight = ph;
+        io->io_DestCols = paper_w * 1000 / 72;
+        io->io_DestRows = paper_h * 1000 / 72;
         io->io_Special = SPECIAL_MILCOLS | SPECIAL_MILROWS;
         io->io_TagList = drtags;
-        err = DoIO((struct IORequest *)io);
+        SendIO((struct IORequest *)io);
+        while (!CheckIO((struct IORequest *)io)) {
+            ULONG sig = Wait(1UL << port->mp_SigBit | winsig);
+            if ((sig & winsig) && print_input() && !stopped) {
+                AbortIO((struct IORequest *)io);
+                stopped = TRUE;
+            }
+        }
+        WaitIO((struct IORequest *)io);
+        err = stopped ? 0 : io->io_Error;
     }
     CloseDevice((struct IORequest *)io);
     DeleteIORequest((struct IORequest *)io);
     DeleteMsgPort(port);
     msg[0] = 0;
-    if (err) {
+    if (stopped) cat_str(msg, "Druck abgebrochen");
+    else if (err) {
         cat_str(msg, "Druckfehler ");
         cat_num(msg, err);
     } else {

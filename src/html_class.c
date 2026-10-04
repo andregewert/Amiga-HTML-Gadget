@@ -77,6 +77,7 @@ struct HImage {
     struct BitMap *ownbm;            /* scaled or enlarged copy made by us, or NULL */
     PLANEPTR       ownmask;
     LONG           maskw, maskh;
+    BOOL           ownmaskvec;       /* ownmask is from AllocVec() (scale_masked_planar) */
     BOOL           tile;             /* background picture (tiled) */
 };
 
@@ -852,7 +853,10 @@ static void free_images(struct HImage *im)
     while (im) {
         struct HImage *next = im->next;
         if (im->ownbm) { WaitBlit(); FreeBitMap(im->ownbm); }
-        if (im->ownmask) FreeRaster(im->ownmask, im->maskw, im->maskh);
+        if (im->ownmask) {
+            if (im->ownmaskvec) FreeVec(im->ownmask);
+            else FreeRaster(im->ownmask, im->maskw, im->maskh);
+        }
         if (im->dto) DisposeDTObject(im->dto);
         FreeVec(im);
         im = next;
@@ -926,6 +930,87 @@ static void image_error(struct ImgLoad *il, const char *path, const char *step, 
     il->err[n] = 0;
 }
 
+/* Planar pictures with a mask: the row width of the datatype's mask is not
+ * known (with an interleaved friend bitmap on AGA it differs from what
+ * AllocRaster() gives), so scaling it gives garbage. The picture is
+ * blitted with its mask - the way that works on the screen - onto colour
+ * 0 and onto the highest colour, into plain bitmaps: where both agree it
+ * is opaque. That gives the picture and a mask in a layout we know (one
+ * plane with the BytesPerRow of the bitmap), both are scaled then.     */
+static void scale_masked_planar(struct HImage *im, LONG nw, LONG nh)
+{
+    ULONG depth = GetBitMapAttr(im->bm, BMA_DEPTH);
+    struct BitMap *a = NULL, *b = NULL, *dst = NULL, smask, dmask;
+    struct BitScaleArgs bsa;
+    struct RastPort rp;
+    PLANEPTR mask = NULL, nm = NULL;
+    LONG bpr, row, i, k;
+
+    if (!(a = AllocBitMap(im->w, im->h, depth, BMF_CLEAR, NULL)) ||
+        !(b = AllocBitMap(im->w, im->h, depth, BMF_CLEAR, NULL)) ||
+        (GetBitMapAttr(a, BMA_FLAGS) & BMF_INTERLEAVED) || a->BytesPerRow != b->BytesPerRow)
+        goto out;
+    bpr = a->BytesPerRow;
+    if (!(mask = AllocVec(bpr * im->h, MEMF_CHIP | MEMF_CLEAR))) goto out;
+
+    InitRastPort(&rp);
+    rp.BitMap = b;
+    SetRast(&rp, (1L << depth) - 1);
+    BltMaskBitMapRastPort(im->bm, 0, 0, &rp, 0, 0, im->w, im->h, 0xE0, im->mask);
+    rp.BitMap = a;
+    BltMaskBitMapRastPort(im->bm, 0, 0, &rp, 0, 0, im->w, im->h, 0xE0, im->mask);
+    WaitBlit();
+    /* opaque where no plane differs */
+    for (row = 0; row < im->h; row++)
+        for (k = 0; k < bpr; k++) {
+            UBYTE diff = 0;
+            for (i = 0; i < (LONG)depth; i++)
+                diff |= a->Planes[i][row * bpr + k] ^ b->Planes[i][row * bpr + k];
+            mask[row * bpr + k] = (UBYTE)~diff;
+        }
+
+    if (!(dst = AllocBitMap(nw, nh, depth, BMF_CLEAR, NULL)) || (GetBitMapAttr(dst, BMA_FLAGS) & BMF_INTERLEAVED) ||
+        !(nm = AllocVec(dst->BytesPerRow * nh, MEMF_CHIP | MEMF_CLEAR)))
+        goto out;
+    h_memset(&bsa, 0, sizeof(bsa));
+    bsa.bsa_SrcWidth = im->w;
+    bsa.bsa_SrcHeight = im->h;
+    bsa.bsa_XSrcFactor = im->w;
+    bsa.bsa_YSrcFactor = im->h;
+    bsa.bsa_XDestFactor = nw;
+    bsa.bsa_YDestFactor = nh;
+    bsa.bsa_SrcBitMap = a;
+    bsa.bsa_DestBitMap = dst;
+    BitMapScale(&bsa);
+    InitBitMap(&smask, 1, im->w, im->h);
+    smask.BytesPerRow = bpr;
+    smask.Planes[0] = mask;
+    InitBitMap(&dmask, 1, nw, nh);
+    dmask.BytesPerRow = dst->BytesPerRow;
+    dmask.Planes[0] = nm;
+    bsa.bsa_SrcBitMap = &smask;
+    bsa.bsa_DestBitMap = &dmask;
+    BitMapScale(&bsa);
+    WaitBlit();
+
+    im->ownbm = dst;
+    im->bm = dst;
+    im->ownmask = nm;
+    im->ownmaskvec = TRUE;
+    im->mask = nm;
+    im->w = nw;
+    im->h = nh;
+    dst = NULL;
+    nm = NULL;
+out:
+    WaitBlit();
+    if (nm) FreeVec(nm);
+    if (dst) FreeBitMap(dst);
+    if (mask) FreeVec(mask);
+    if (b) FreeBitMap(b);
+    if (a) FreeBitMap(a);
+}
+
 /* scales the picture with graphics.library, used when picture.datatype
  * did not honour PDTM_SCALE                                              */
 static void scale_image(struct HImage *im, LONG nw, LONG nh)
@@ -936,6 +1021,10 @@ static void scale_image(struct HImage *im, LONG nw, LONG nh)
     BOOL planar = (GetBitMapAttr(im->bm, BMA_FLAGS) & BMF_STANDARD) != 0;
 
     if (im->w < 1 || im->h < 1 || im->w > 16383 || im->h > 16383 || nw > 16383 || nh > 16383) return;
+    if (planar && im->mask) {
+        scale_masked_planar(im, nw, nh);
+        return;
+    }
     /* planar: a plain (non-interleaved) bitmap, so the mask layout matches;
      * RTG: a friend bitmap in the screen's pixel format                    */
     if (!(dst = AllocBitMap(nw, nh, depth, BMF_CLEAR | BMF_MINPLANES, planar ? NULL : im->bm))) return;
@@ -998,6 +1087,12 @@ static void expand_tile(struct HImage *im)
     im->h = nh;
 }
 
+/* a screen with planar bitmaps (OCS/ECS/AGA), not RTG */
+static BOOL planar_screen(struct Screen *scr)
+{
+    return (GetBitMapAttr(scr->RastPort.BitMap, BMA_FLAGS) & BMF_STANDARD) != 0;
+}
+
 static struct HImage *load_image(struct ImgLoad *il, const char *path, LONG reqw, LONG reqh,
                                  struct Screen *scr, BOOL tile)
 {
@@ -1040,8 +1135,11 @@ static struct HImage *load_image(struct ImgLoad *il, const char *path, LONG reqw
     }
 
     /* width/height attributes: let the datatype scale (V45+); if it
-     * cannot, the picture is shown in its natural size and clipped      */
-    if (bmhd && reqw > 0 && reqh > 0 && (reqw != im->w || reqh != im->h) && reqw <= 4000 && reqh <= 4000) {
+     * cannot, scale_image() does it below. Not with a mask on a planar
+     * screen: the datatype's mask does not fit the scaled picture there
+     * (seen on AGA), scale_image() makes its own.                       */
+    if (bmhd && reqw > 0 && reqh > 0 && (reqw != im->w || reqh != im->h) && reqw <= 4000 && reqh <= 4000 &&
+        !(planar_screen(scr) && (bmhd->bmh_Masking == mskHasMask || bmhd->bmh_Masking == mskHasTransparentColor))) {
         struct pdtScale ps;
         ps.MethodID = PDTM_SCALE;
         ps.ps_NewWidth = reqw;
@@ -1857,14 +1955,30 @@ struct BMRender {
     BOOL                  ok;
 };
 
-static void clip_to(struct Layer *layer, LONG x0, LONG y0, LONG x1, LONG y1)
+/* a layered rastport on a new bitmap of the screen's format */
+struct BMArea {
+    struct BitMap     *bm;
+    struct Layer_Info *li;
+    struct Layer      *layer;
+};
+
+static struct RastPort *area_new(struct BMArea *a, LONG w, LONG h, struct BitMap *friend)
 {
-    struct Region *reg = NewRegion(), *old;
-    struct Rectangle r;
-    if (!reg) return;
-    r.MinX = x0; r.MinY = y0; r.MaxX = x1 - 1; r.MaxY = y1 - 1;
-    OrRectRegion(reg, &r);
-    if ((old = InstallClipRegion(layer, reg))) DisposeRegion(old);
+    a->li = NULL;
+    a->layer = NULL;
+    if (!(a->bm = AllocBitMap(w, h, GetBitMapAttr(friend, BMA_DEPTH), BMF_MINPLANES, friend))) return NULL;
+    if ((a->li = NewLayerInfo()))
+        a->layer = CreateUpfrontLayer(a->li, a->bm, 0, 0, w - 1, h - 1, LAYERSIMPLE, NULL);
+    return a->layer ? a->layer->rp : NULL;
+}
+
+static void area_free(struct BMArea *a)
+{
+    if (a->layer) DeleteLayer(0, a->layer);
+    if (a->li) DisposeLayerInfo(a->li);
+    WaitBlit();
+    if (a->bm) FreeBitMap(a->bm);
+    a->bm = NULL;
 }
 
 static ULONG print_render_func(APTR arg)
@@ -1874,20 +1988,19 @@ static ULONG print_render_func(APTR arg)
     struct BMPrint *p = d->print;
     struct hmPrintRender *m = a->m;
     LONG x = m->hmpr_X, y = m->hmpr_Y, w = m->hmpr_Width, h = m->hmpr_Height, page = m->hmpr_Page;
-    struct BitMap *friend = d->scr->RastPort.BitMap, *bm;
+    struct BitMap *friend = d->scr->RastPort.BitMap;
     ULONG depth = GetBitMapAttr(friend, BMA_DEPTH), *buf = m->hmpr_Buffer;
-    struct Layer_Info *li = NULL;
-    struct Layer *layer = NULL;
+    struct BMArea sheet, content;
     struct GadgetInfo gi;
-    struct RastPort *rp;
+    struct RastPort *rp, *crp;
     LONG top, bottom, cx0, cy0, cx1, cy1, i;
 
-    if (w <= 0 || h <= 0 || page < 1 || page > p->npages) return 0;
-    if (!(bm = AllocBitMap(w, h, depth, BMF_MINPLANES, friend))) return 0;
-    if (!(li = NewLayerInfo()) || !(layer = CreateUpfrontLayer(li, bm, 0, 0, w - 1, h - 1, LAYERSIMPLE, NULL)))
-        goto out;
-    rp = layer->rp;
+    content.bm = NULL;
+    content.li = NULL;
+    content.layer = NULL;
     h_memset(&gi, 0, sizeof(gi));
+    if (w <= 0 || h <= 0 || page < 1 || page > p->npages) return 0;
+    if (!(rp = area_new(&sheet, w, h, friend))) goto out;
     gi.gi_Screen = d->scr;
     if (!(gi.gi_DrInfo = GetScreenDrawInfo(d->scr))) goto out;
 
@@ -1895,19 +2008,20 @@ static ULONG print_render_func(APTR arg)
     SetAPen(rp, get_pen(d, &gi, 0xFFFFFF, BACKGROUNDPEN));
     RectFill(rp, 0, 0, w - 1, h - 1);
 
-    /* the content of the page, clipped to its area */
+    /* The content of the page, in a bitmap of its own (as on the screen:
+     * no clip region, masked pictures are blitted wrongly at the borders
+     * of one on AGA), then copied into the sheet.                       */
     top = p->tops[page - 1];
     bottom = page < p->npages ? p->tops[page] : top + p->height;
     cx0 = x > p->ml ? x : p->ml;
     cy0 = y > p->mt ? y : p->mt;
     cx1 = x + w < p->ml + p->cw ? x + w : p->ml + p->cw;
     cy1 = y + h < p->mt + (bottom - top) ? y + h : p->mt + (bottom - top);
-    if (cx0 < cx1 && cy0 < cy1) {
+    if (cx0 < cx1 && cy0 < cy1 && (crp = area_new(&content, cx1 - cx0, cy1 - cy0, friend))) {
         struct HLayout *lay = d->lay;
         LONG otop = d->top, oleft = d->left, ow = d->visw, oh = d->vish;
         BOOL sel = d->sel.active, pressed = d->pressed;
         struct HImage *bgimg = d->bgimg;
-        clip_to(layer, cx0 - x, cy0 - y, cx1 - x, cy1 - y);
         d->lay = p->lay;
         d->left = cx0 - p->ml;
         d->top = top + cy0 - p->mt;
@@ -1916,7 +2030,7 @@ static ULONG print_render_func(APTR arg)
         d->sel.active = 0;
         d->pressed = FALSE;
         d->bgimg = NULL;
-        draw_content(d, &gi, rp, cx0 - x, cy0 - y);
+        draw_content(d, &gi, crp, 0, 0);
         d->lay = lay;
         d->top = otop;
         d->left = oleft;
@@ -1925,24 +2039,24 @@ static ULONG print_render_func(APTR arg)
         d->sel.active = sel;
         d->pressed = pressed;
         d->bgimg = bgimg;
+        BltBitMapRastPort(content.bm, 0, 0, rp, cx0 - x, cy0 - y, cx1 - cx0, cy1 - cy0, 0xC0);
+        area_free(&content);
     }
 
-    /* the page number, centred in the bottom margin */
+    /* the page number, centred in the bottom margin (the layer clips) */
     if (p->footer && *p->footer && y + h > p->ph - p->mb && y < p->ph) {
         struct TextFont *tf = d->use[HF_INDEX(0, 2)] ? d->use[HF_INDEX(0, 2)] : d->use[HF_INDEX(0, 3)];
         long len = html_print_footer(p->ftext, sizeof(p->ftext), p->footer, page, p->npages);
-        clip_to(layer, 0, (p->ph - p->mb > y ? p->ph - p->mb : y) - y, w, (p->ph < y + h ? p->ph : y + h) - y);
         SetFont(rp, tf);
         SetSoftStyle(rp, 0, AskSoftStyle(rp));
         SetAPen(rp, get_pen(d, &gi, 0x000000, TEXTPEN));
         Move(rp, (p->pw - TextLength(rp, (STRPTR)p->ftext, len)) / 2 - x, p->ph - p->mb / 2 - y);
         Text(rp, (STRPTR)p->ftext, len);
     }
-    InstallClipRegion(layer, NULL);
     WaitBlit();
 
     /* read the pixels back as RGB */
-    if (depth > 8 && html_open_cybergfx() && GetCyberMapAttr(bm, CYBRMATTR_ISCYBERGFX)) {
+    if (depth > 8 && html_open_cybergfx() && GetCyberMapAttr(sheet.bm, CYBRMATTR_ISCYBERGFX)) {
         ReadPixelArray(buf, 0, 0, w * 4, rp, 0, 0, w, h, RECTFMT_ARGB);
         for (i = 0; i < w * h; i++) buf[i] &= 0xFFFFFFUL;
         a->ok = TRUE;
@@ -1976,10 +2090,7 @@ static ULONG print_render_func(APTR arg)
     }
 out:
     if (gi.gi_DrInfo) FreeScreenDrawInfo(d->scr, gi.gi_DrInfo);
-    if (layer) DeleteLayer(0, layer);
-    if (li) DisposeLayerInfo(li);
-    WaitBlit();
-    FreeBitMap(bm);
+    area_free(&sheet);
     return 0;
 }
 

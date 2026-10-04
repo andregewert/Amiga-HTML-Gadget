@@ -82,6 +82,8 @@ History
    pixels of the sheet, in strips, e.g. for printer.device with
    DRPA_SourceHook; htmlttf.gadget in the printer's resolution,
    html.gadget with its bitmap fonts
+ - html.gadget: scaled pictures with transparency (GIF) are drawn
+   correctly on planar screens (AGA)
  - HTMLDemo: export to RAM:HTMLDemo.ps / .pdf from the Project menu,
    bitmap printing through printer.device;
    it sets its own stack (32 KB), so it also runs without its icon
@@ -134,6 +136,8 @@ Versionsgeschichte
    Pixel des Blatts, in Streifen, z. B. für printer.device mit
    DRPA_SourceHook; htmlttf.gadget in der Druckerauflösung, html.gadget
    mit seinen Bitmap-Schriften
+ - html.gadget: skalierte Bilder mit Transparenz (GIF) werden auf
+   planaren Bildschirmen (AGA) richtig gezeichnet
  - HTMLDemo: Export nach RAM:HTMLDemo.ps / .pdf im Menü Projekt,
    Bitmap-Druck über printer.device; es
    setzt seinen Stack selbst (32 KB) und läuft so auch ohne sein Icon
