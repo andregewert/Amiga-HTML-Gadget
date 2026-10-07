@@ -169,6 +169,9 @@ html.gadget/HTML_Visible
     HTMLEX_PSLevel (LONG) - PostScript level 2 (default) or 1. Level 1
         only for printers or interpreters without level 2 (before about
         1992); Ghostscript and TurboPrint understand level 2. (V1.2)
+    HTMLEX_ImageDPI (LONG) - most pixels per inch a picture has on paper;
+        pictures with more (also JPEG files) are scaled down to it, which
+        makes the file smaller. Default 0: pictures as they are. (V1.2)
     HTMLEX_PaperWidth, HTMLEX_PaperHeight (LONG) - paper size in points
         (1/72 inch), default A4 (595 x 842).
     HTMLEX_MarginLeft, HTMLEX_MarginTop, HTMLEX_MarginRight,

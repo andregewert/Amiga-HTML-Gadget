@@ -620,6 +620,84 @@ static unsigned on_white(unsigned long v, int k)
     return (((unsigned)(v >> (16 - 8 * k)) & 255) * a + white) / 255;
 }
 
+/* the largest box of a picture in the layout (pixels of 1/96 inch) */
+static void image_box(struct Ctx *c, void *img, long *bw, long *bh)
+{
+    long i;
+    *bw = *bh = 0;
+    for (i = 0; i < c->lay->nitems; i++) {
+        struct HItem *it = &c->lay->items[i];
+        if (it->type == IT_IMAGE && it->img == img) {
+            if (it->w > *bw) *bw = it->w;
+            if (it->h > *bh) *bh = it->h;
+        }
+    }
+}
+
+/* Pictures with more pixels per inch on paper than HPrintOpts.image_dpi
+ * are scaled down to it (area average, alpha weighted); the copy comes
+ * from the pool and is freed with shrink_free(). FALSE: as it is.      */
+struct Small { unsigned long *pix; long size; };
+
+static int shrink_image(struct Ctx *c, struct HPrintImage *pi, long bw, long bh, struct Small *sm)
+{
+    long dpi = c->opt->image_dpi, tw, th, nw, nh, x, y;
+    unsigned long *d;
+
+    sm->pix = 0;
+    sm->size = 0;
+    if (dpi <= 0 || bw <= 0 || bh <= 0) return 0;
+    tw = (bw * dpi + 95) / 96;
+    th = (bh * dpi + 95) / 96;
+    nw = pi->w > tw ? tw : pi->w;
+    nh = pi->h > th ? th : pi->h;
+    if (nw < 1) nw = 1;
+    if (nh < 1) nh = 1;
+    if (nw == pi->w && nh == pi->h) return 0;
+    sm->size = nw * nh * (long)sizeof(unsigned long);
+    if (!(sm->pix = hsys_alloc(c->out.pool, sm->size))) return 0;
+    d = sm->pix;
+    for (y = 0; y < nh; y++) {
+        long y0 = y * pi->h / nh, y1 = (y + 1) * pi->h / nh, sy;
+        if (y1 <= y0) y1 = y0 + 1;
+        sy = (y1 - y0) / 32 + 1;            /* at most 32 x 32 samples: sums stay in 32 bit */
+        for (x = 0; x < nw; x++) {
+            long x0 = x * pi->w / nw, x1 = (x + 1) * pi->w / nw, sx = 0, xx, yy;
+            unsigned long n = 0, as = 0, rs = 0, gs = 0, bs = 0;
+            if (x1 <= x0) x1 = x0 + 1;
+            sx = (x1 - x0) / 32 + 1;
+            for (yy = y0; yy < y1; yy += sy)
+                for (xx = x0; xx < x1; xx += sx) {
+                    unsigned long v = pi->argb[yy * pi->w + xx], a = v >> 24 & 255;
+                    as += a;
+                    rs += (v >> 16 & 255) * a;
+                    gs += (v >> 8 & 255) * a;
+                    bs += (v & 255) * a;
+                    n++;
+                }
+            *d++ = as ? (as / n) << 24 | (rs / as) << 16 | (gs / as) << 8 | bs / as : 0;
+        }
+    }
+    pi->argb = sm->pix;
+    pi->w = nw;
+    pi->h = nh;
+    return 1;
+}
+
+static void shrink_free(struct Ctx *c, struct Small *sm)
+{
+    if (sm->pix) hsys_free(c->out.pool, sm->pix, sm->size);
+    sm->pix = 0;
+}
+
+/* a JPEG file is passed on as it is unless it has more pixels than the
+ * limit of HPrintOpts.image_dpi allows for the box                     */
+static int jpeg_fits(struct Ctx *c, long jw, long jh, long bw, long bh)
+{
+    long dpi = c->opt->image_dpi;
+    return dpi <= 0 || bw <= 0 || bh <= 0 || (jw <= (bw * dpi + 95) / 96 && jh <= (bh * dpi + 95) / 96);
+}
+
 /* index of a picture with a PDF image object, -1 if none */
 static long pdf_image(struct Ctx *c, void *img)
 {
@@ -636,12 +714,14 @@ static int draw_image(struct Ctx *c, struct HItem *it)
     struct Out *w = &c->out;
     struct HPrintImage pi;
     struct Enc e;
+    struct Small sm;
     long k = -1, x, y, jw, jh;
-    int comps;
+    int comps, usejpeg;
 
     if (!it->img || !o->image) return 0;
     if (o->format == HP_PDF && (k = pdf_image(c, it->img)) < 0) return 0;
     if (o->format != HP_PDF && !get_image(c, it->img, &pi)) return 0;
+    sm.pix = 0;
     puts_(w, "q ");
     put_fix(w, it->w * 75); puts_(w, " 0 0 ");
     put_fix(w, it->h * 75); putc_(w, ' ');
@@ -653,7 +733,10 @@ static int draw_image(struct Ctx *c, struct HItem *it)
         puts_(w, " Do Q\n");
         return 1;
     }
-    if (o->ps_level != 1 && jpeg_info(pi.jpeg, pi.jpeglen, 0, &jw, &jh, &comps)) {
+    usejpeg = o->ps_level != 1 && jpeg_info(pi.jpeg, pi.jpeglen, 0, &jw, &jh, &comps) &&
+              jpeg_fits(c, jw, jh, it->w, it->h);
+    if (!usejpeg) shrink_image(c, &pi, it->w, it->h, &sm);
+    if (usejpeg) {
         /* level 2: the JPEG file as it is */
         puts_(w, "/HPa currentfile /ASCII85Decode filter def /HPf HPa /DCTDecode filter def\n");
         put_long(w, jw); putc_(w, ' '); put_long(w, jh);
@@ -699,6 +782,7 @@ static int draw_image(struct Ctx *c, struct HItem *it)
         }
     }
     puts_(w, "Q\n");
+    shrink_free(c, &sm);
     if (o->image_free) o->image_free(o->user, &pi);
     return 1;
 }
@@ -1055,14 +1139,16 @@ static int pdf_image_obj(struct Ctx *c, long *offs, long num, void *img)
     const struct HPrintOpts *o = c->opt;
     struct Out *w = &c->out;
     struct HPrintImage pi;
-    long i, n, start, jw, jh;
+    struct Small sm;
+    long i, n, start, jw, jh, bw, bh;
     int alpha = 0, comps;
 
     if (!get_image(c, img, &pi)) return 0;
-    n = pi.w * pi.h;
+    image_box(c, img, &bw, &bh);            /* used once: the largest place counts */
+    sm.pix = 0;
     pdf_obj(w, offs, num);
     puts_(w, "<< /Type /XObject /Subtype /Image /Width ");
-    if (jpeg_info(pi.jpeg, pi.jpeglen, 1, &jw, &jh, &comps)) {
+    if (jpeg_info(pi.jpeg, pi.jpeglen, 1, &jw, &jh, &comps) && jpeg_fits(c, jw, jh, bw, bh)) {
         put_long(w, jw);
         puts_(w, " /Height ");
         put_long(w, jh);
@@ -1074,6 +1160,8 @@ static int pdf_image_obj(struct Ctx *c, long *offs, long num, void *img)
         w->pos += pi.jpeglen;
         pdf_stream_end(w, offs, num, start);
     } else {
+        shrink_image(c, &pi, bw, bh, &sm);
+        n = pi.w * pi.h;
         for (i = 0; i < n && !alpha; i++) alpha = (pi.argb[i] >> 24 & 255) != 255;
         put_long(w, pi.w);
         puts_(w, " /Height ");
@@ -1105,6 +1193,7 @@ static int pdf_image_obj(struct Ctx *c, long *offs, long num, void *img)
             pdf_stream_end(w, offs, num + 2, start);
         }
     }
+    shrink_free(c, &sm);
     if (o->image_free) o->image_free(o->user, &pi);
     return 1;
 }

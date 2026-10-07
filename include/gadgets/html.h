@@ -175,6 +175,9 @@ struct hmExport {
 #define HTMLEX_PSLevel      (HTMLEX_Dummy + 21)  /* LONG PostScript level 1 or 2, default 2: level 2
                                                   * compresses pictures (LZW, ASCII85, JPEG files
                                                   * as they are), level 1 writes them in hex      */
+#define HTMLEX_ImageDPI     (HTMLEX_Dummy + 22)  /* LONG most pixels per inch of a picture on paper;
+                                                  * pictures with more are scaled down (also JPEG
+                                                  * files), 0 = as they are (default)             */
 
 #define HTMLEXF_PS          0
 #define HTMLEXF_PDF         1

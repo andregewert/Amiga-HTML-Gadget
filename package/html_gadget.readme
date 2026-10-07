@@ -82,9 +82,10 @@ History
    pixels of the sheet, in strips, e.g. for printer.device with
    DRPA_SourceHook; htmlttf.gadget in the printer's resolution,
    html.gadget with its bitmap fonts
- - export: pictures are compressed (PDF: LZW with PNG predictors,
-   PostScript level 2: LZW in ASCII85), JPEG files are passed on as
-   they are; HTMLEX_PSLevel 1 writes PostScript level 1 for old printers
+ - export: pictures are compressed (PDF: LZW with PNG predictors, PostScript
+   level 2: LZW in ASCII85), JPEG files are passed on as they are;
+   HTMLEX_PSLevel 1 writes PostScript level 1 for old printers;
+   HTMLEX_ImageDPI scales pictures down to a resolution for smaller files
  - new attribute HTML_FitImages: pictures wider than the text are
    scaled down to its width (like max-width: 100% in CSS), also when
    printing; off by default, handy for Markdown with big screenshots
@@ -142,10 +143,10 @@ Versionsgeschichte
    Pixel des Blatts, in Streifen, z. B. für printer.device mit
    DRPA_SourceHook; htmlttf.gadget in der Druckerauflösung, html.gadget
    mit seinen Bitmap-Schriften
- - Export: Bilder werden komprimiert (PDF: LZW mit PNG-Prädiktoren,
-   PostScript Level 2: LZW in ASCII85), JPEG-Dateien werden unverändert
-   übernommen; HTMLEX_PSLevel 1 schreibt PostScript Level 1 für alte
-   Drucker
+ - Export: Bilder werden komprimiert (PDF: LZW mit PNG-Prädiktoren, PostScript
+   Level 2: LZW in ASCII85), JPEG-Dateien werden unverändert übernommen;
+   HTMLEX_PSLevel 1 schreibt PostScript Level 1 für alte Drucker;
+   HTMLEX_ImageDPI verkleinert Bilder auf eine Auflösung für kleinere Dateien
  - neues Attribut HTML_FitImages: Bilder, die breiter als der Text
    sind, werden auf seine Breite verkleinert (wie max-width: 100% in
    CSS), auch beim Drucken; abgeschaltet, praktisch für Markdown mit

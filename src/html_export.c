@@ -112,6 +112,8 @@ LONG html_export(struct HDoc *doc, Object *gadget, struct TagItem *tags, int fit
     h_memset(&o, 0, sizeof(o));
     o.format = GetTagData(HTMLEX_Format, HTMLEXF_PS, tags) == HTMLEXF_PDF ? HP_PDF : HP_PS;
     o.ps_level = GetTagData(HTMLEX_PSLevel, 2, tags) == 1 ? 1 : 2;
+    o.image_dpi = (long)GetTagData(HTMLEX_ImageDPI, 0, tags);
+    if (o.image_dpi < 0) o.image_dpi = 0;
     o.paper_w = GetTagData(HTMLEX_PaperWidth, 595, tags);
     o.paper_h = GetTagData(HTMLEX_PaperHeight, 842, tags);
     o.margin[0] = GetTagData(HTMLEX_MarginLeft, 57, tags);
