@@ -20,6 +20,14 @@
 
 enum { FK_TEXT, FK_BOX };
 
+/* HEnv.table_grid / code_style, as GitHub shows Markdown */
+#define C_GRID      0xD0D7DEUL      /* table lines, quote bar */
+#define C_CODEBG    0xEFF1F3UL      /* inline code */
+#define C_PREBG     0xF6F8FAUL      /* code blocks */
+
+/* text fragment flag: inline code (fixed font outside <pre>) */
+#define FRF_CODE     0x01
+
 /* FK_BOX flags besides FR_RAISED: a checkbox or radio button (IT_CHECK) */
 #define FR_CHECK     0x10
 #define FR_CKRADIO   0x20
@@ -505,6 +513,23 @@ static void flush_n(struct LCtx *L, struct Box *b, long n)
 
     if (!L->measure) {
         int soft = L->soft;
+        /* inline code: a background behind each run of code words,
+         * drawn before the text                                       */
+        if (L->env->code_style)
+            for (i = 0; i < n; i++) {
+                long j = i;
+                struct HItem *it;
+                if (f[i].kind != FK_TEXT || !(f[i].flags & FRF_CODE)) continue;
+                while (j + 1 < n && f[j + 1].kind == FK_TEXT && (f[j + 1].flags & FRF_CODE)) j++;
+                if ((it = emit(L, IT_RECT))) {
+                    it->x = b->x0 + dx + f[i].x - 2;
+                    it->y = b->y;
+                    it->w = f[j].x + f[j].w - f[i].x + 4;
+                    it->h = lh - 1;
+                    it->color = C_CODEBG;
+                }
+                i = j;
+            }
         for (i = 0; i < n; i++) {
             struct HItem *it;
             long x = b->x0 + dx + f[i].x;
@@ -627,6 +652,7 @@ static void add_piece(struct LCtx *L, struct Box *b, const struct Style *st, con
     f->len = len;
     f->font = (unsigned char)font;
     f->style = st->style;
+    if (st->fixed && !st->pre) f->flags = FRF_CODE;
     f->asc = (short)fbase(L, font);
     f->desc = (short)(fheight(L, font) - f->asc);
 }
@@ -768,6 +794,35 @@ static void block(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
     b->width = sw;
     b->align = salign;
     add_margin(b, mbottom);
+}
+
+/* HEnv.code_style: a code block on a grey background with some room
+ * around the text, or a quote with a grey bar on the left (as GitHub) */
+static void styled_block(struct LCtx *L, struct Box *b, struct HNode *n, const struct Style *st,
+                         long lh, int code)
+{
+    long pad = code ? lh / 2 : 0, bar = L->em / 4 > 2 ? L->em / 4 : 2, y0, idx = -1;
+    struct HItem *it;
+
+    flush_line(L, b, 0);
+    add_margin(b, lh);
+    apply_margin(b);
+    y0 = b->y;
+    if ((it = emit(L, IT_RECT))) {
+        it->x = b->x0 + (code ? 0 : L->em);
+        it->y = y0;
+        it->w = code ? b->width : bar;
+        it->color = code ? C_PREBG : C_GRID;
+        idx = L->lay->nitems - 1;
+    }
+    b->y += pad;
+    b->at_top = 1;                      /* no margin before the first line */
+    block(L, b, n, st, 0, 0, code ? L->em : L->em * 2 + bar, code ? L->em : L->em * 5 / 2);
+    b->margin = 0;                      /* the last paragraph's margin stays inside */
+    b->y += pad;
+    if (idx >= 0 && !L->measure) L->lay->items[idx].h = b->y - y0;
+    b->at_top = 0;
+    add_margin(b, lh);
 }
 
 static char *make_number(struct LCtx *L, long num, int type)
@@ -1059,7 +1114,8 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
     struct TCell *cells = 0;
     long nrows = 0, ncells = 0, ncols = 0, i, j, k;
     long *colmin, *colmax, *colw, *colx, *busy;
-    long border, spacing, padding, cb, overhead, avail, tw, tx, ty, y0, twant = -1;
+    long border, spacing, padding, vpad, cb, overhead, avail, tw, tx, ty, y0, twant = -1;
+    int grid;
     long summin = 0, summax = 0;
     unsigned long tbg;
     const char *a;
@@ -1075,16 +1131,20 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
 
     /* attributes */
     a = html_attr(n, "border");
+    /* no border attribute and HEnv.table_grid: the cells get flat light
+     * grey lines that touch (spacing -1: one line between two cells)    */
+    grid = !a && L->env->table_grid;
     border = a ? (*a ? h_atol(a) : 1) : 0;
     if (border < 0) border = 0;
     if (border > 20) border = 20;
     a = html_attr(n, "cellspacing");
-    spacing = a ? h_atol(a) : 2;
+    spacing = a ? h_atol(a) : grid ? -1 : 2;
+    if (a && spacing < 0) spacing = 0;
     a = html_attr(n, "cellpadding");
-    padding = a ? h_atol(a) : 1;
-    if (spacing < 0) spacing = 0;
+    padding = a ? h_atol(a) : grid ? L->em / 3 + 2 : 1;
     if (padding < 0) padding = 0;
-    cb = border ? 1 : 0;
+    vpad = !a && grid ? 2 : padding;    /* the grid: less room above and below */
+    cb = border || grid ? 1 : 0;
     tbg = html_parse_color(html_attr(n, "bgcolor"));
     if ((a = html_attr(n, "width"))) {
         twant = parse_length(a, b->width, &pct);
@@ -1219,7 +1279,7 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
             for (k = ce->col; k < ce->col + ce->span; k++) colmax[k] += (ce->max - smax - extra + ce->span - 1) / ce->span;
     }
     /* width="n%" on single cells, relative to the table's inner width */
-    overhead = 2 * border + (ncols + 1) * spacing + ncols * 2 * cb;
+    overhead = 2 * border + (spacing < 0 ? ncols - 1 : ncols + 1) * spacing + ncols * 2 * cb;
     avail = (twant > 0 ? twant : b->width) - overhead;
     if (!L->measure) {
         for (i = 0; i < ncells; i++) {
@@ -1269,7 +1329,7 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
         if (align == AL_CENTER) tx += (b->width - tw) / 2;
         else if (align == AL_RIGHT) tx += b->width - tw;
     }
-    colx[0] = tx + border + spacing;
+    colx[0] = tx + border + (spacing > 0 ? spacing : 0);
     for (k = 1; k < ncols; k++) colx[k] = colx[k - 1] + colw[k - 1] + 2 * cb + spacing;
 
     /* caption above the table */
@@ -1288,7 +1348,7 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
         }
     }
 
-    ty = y0 + border + spacing;
+    ty = y0 + border + (spacing > 0 ? spacing : 0);
     for (i = 0; i < nrows; i++) {
         long rowh = 0;
         unsigned long rbg = html_parse_color(html_attr(rows[i].n, "bgcolor"));
@@ -1320,9 +1380,9 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
             }
             ce->istart = L->lay->nitems;
             cell_style(L, ce->n, &ts, &cs, &cal);
-            h = cell_content(L, ce->n, &cs, cx + cb + padding, cw - 2 * padding, ty + cb + padding, cal);
+            h = cell_content(L, ce->n, &cs, cx + cb + padding, cw - 2 * padding, ty + cb + vpad, cal);
             ce->iend = L->lay->nitems;
-            ce->h = h + 2 * padding + 2 * cb;
+            ce->h = h + 2 * vpad + 2 * cb;
             ce->y = ty;
             ce->min = cw;                                 /* remember width for the frame */
             ce->max = cx;
@@ -1348,13 +1408,14 @@ static void table(struct LCtx *L, struct Box *b, struct HNode *n, const struct S
                 struct HItem *it = emit(L, IT_FRAME);
                 if (it) {
                     it->x = ce->max; it->y = ce->y; it->w = ce->min + 2; it->h = ch;
-                    it->color = COL_NONE;
+                    it->color = grid ? C_GRID : COL_NONE;     /* a colour: a flat frame */
                 }
             }
         }
         ty += rowh + spacing;
     }
     ty += border;
+    if (spacing < 0) ty -= spacing;     /* the last row's line is not shared */
     if (tbgidx >= 0 && !L->measure) L->lay->items[tbgidx].h = ty - y0;
     for (k = 0; k < border; k++) {
         struct HItem *it = emit(L, IT_FRAME);
@@ -1439,10 +1500,12 @@ static void layout_node(struct LCtx *L, struct Box *b, struct HNode *n, const st
         block(L, b, n, &s, lh * 2 / 3, lh * 2 / 3, 0, 0);
         return;
     case T_PRE: case T_XMP: case T_LISTING: case T_PLAINTEXT:
-        block(L, b, n, &s, lh, lh, 0, 0);
+        if (L->env->code_style) styled_block(L, b, n, &s, lh, 1);
+        else block(L, b, n, &s, lh, lh, 0, 0);
         return;
     case T_BLOCKQUOTE:
-        block(L, b, n, &s, lh, lh, L->em * 5 / 2, L->em * 5 / 2);
+        if (L->env->code_style) styled_block(L, b, n, &s, lh, 0);
+        else block(L, b, n, &s, lh, lh, L->em * 5 / 2, L->em * 5 / 2);
         return;
     case T_DL:
         block(L, b, n, &s, (n->parent && n->parent->tag == T_DD) ? 0 : lh,

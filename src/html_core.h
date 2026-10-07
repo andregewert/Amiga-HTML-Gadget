@@ -149,6 +149,8 @@ struct HEnv {
     long  margin;
     int   system_colors;
     int   fit_images;           /* pictures wider than their box are scaled down to it */
+    int   table_grid;           /* tables without border: thin light grey lines (as GitHub) */
+    int   code_style;           /* grey background for <pre> and inline code, bar for quotes */
     unsigned long generation;   /* change when fonts change (never 0) */
 };
 

@@ -130,6 +130,19 @@
  * their size like a browser does. (V1.2)                            (ISG)  */
 #define HTML_FitImages      (HTML_Dummy + 30)    /* BOOL */
 
+/* TRUE: tables without a border attribute get thin light grey lines
+ * between and around their cells, with a little room inside, as GitHub
+ * shows Markdown tables. Tables with border="..." keep their 3D frames.
+ * Printing and export use it too. FALSE (default): no lines. (V1.2) (ISG) */
+#define HTML_TableGrid      (HTML_Dummy + 31)    /* BOOL */
+
+/* TRUE: code blocks (<pre>, <xmp>, <listing>) on a light grey background
+ * with some room around them, inline code (<code>, <tt>, <kbd>, <samp>)
+ * on a grey background, quotes (<blockquote>) with a grey bar on the
+ * left - as GitHub shows Markdown. Printing and export use it too (the
+ * backgrounds only with HTMLEX_Backgrounds). FALSE (default). (V1.2) (ISG) */
+#define HTML_CodeStyle      (HTML_Dummy + 32)    /* BOOL */
+
 /*****************************************************************************/
 /* Printing and export (V1.2)                                                */
 

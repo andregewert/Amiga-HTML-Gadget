@@ -5,10 +5,16 @@ htmlttf.gadget/HTMLM_Export
 htmlttf.gadget/HTMLM_PrintBegin
 htmlttf.gadget/HTMLM_PrintEnd
 htmlttf.gadget/HTMLM_PrintRender
+htmlttf.gadget/HTMLTTF_FontDir
+htmlttf.gadget/HTMLTTF_FontSet
+htmlttf.gadget/HTMLTTF_FontSetName
+htmlttf.gadget/HTMLTTF_GetClass
+htmlttf.gadget/HTMLTTF_Size
 htmlttf.gadget/HTML_Anchor
 htmlttf.gadget/HTML_AutoAnchors
 htmlttf.gadget/HTML_BaseDir
 htmlttf.gadget/HTML_ClearSelection
+htmlttf.gadget/HTML_CodeStyle
 htmlttf.gadget/HTML_Copy
 htmlttf.gadget/HTML_File
 htmlttf.gadget/HTML_FitImages
@@ -26,16 +32,12 @@ htmlttf.gadget/HTML_NumLinks
 htmlttf.gadget/HTML_SelectAll
 htmlttf.gadget/HTML_SelectedText
 htmlttf.gadget/HTML_SystemColors
+htmlttf.gadget/HTML_TableGrid
 htmlttf.gadget/HTML_Text
 htmlttf.gadget/HTML_Title
 htmlttf.gadget/HTML_Top
 htmlttf.gadget/HTML_Total
 htmlttf.gadget/HTML_Visible
-htmlttf.gadget/HTMLTTF_FontDir
-htmlttf.gadget/HTMLTTF_FontSet
-htmlttf.gadget/HTMLTTF_FontSetName
-htmlttf.gadget/HTMLTTF_GetClass
-htmlttf.gadget/HTMLTTF_Size
 htmlttf.gadget/--datasheet--                      htmlttf.gadget/--datasheet--
 
    NAME
@@ -72,7 +74,8 @@ htmlttf.gadget/HTMLTTF_Size
     HTML_Text, HTML_File, HTML_Title, HTML_Top, HTML_Total, HTML_Visible,
     HTML_Left, HTML_TotalWidth, HTML_VisibleWidth, HTML_LinkURL, HTML_Anchor,
     HTML_SystemColors, HTML_Margin, HTML_LineHeight, HTML_AutoAnchors,
-    HTML_FitImages, HTML_Frame, HTML_NumLinks, HTML_BaseDir, HTML_LoadImages,
+    HTML_FitImages, HTML_TableGrid, HTML_CodeStyle, HTML_Frame, HTML_NumLinks,
+    HTML_BaseDir, HTML_LoadImages,
     HTML_ImagesTotal, HTML_ImagesLoaded, HTML_ImageError, HTML_Copy,
     HTML_SelectAll, HTML_ClearSelection, HTML_HasSelection,
     HTML_SelectedText, HTMLTTF_FontDir, HTMLTTF_FontSet, HTMLTTF_Size, HTMLTTF_FontSetName
@@ -326,6 +329,24 @@ htmlttf.gadget/HTMLTTF_Size
 
    USAGE
     (OM_SET)
+htmlttf.gadget/HTML_CodeStyle                    htmlttf.gadget/HTML_CodeStyle
+
+   NAME
+    HTML_CodeStyle -- (BOOL) grey backgrounds for code, bar for quotes (V1.2)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET)
+
+   FUNCTION
+    If TRUE, code blocks (<pre>, <xmp>, <listing>) are set on a light grey
+    background with some room around the text, inline code (<code>, <tt>,
+    <kbd>, <samp>) on a grey background, and quotes (<blockquote>) get a
+    grey bar on the left, as GitHub shows Markdown. Printing and export use
+    the setting too; there the backgrounds follow HTMLEX_Backgrounds.
+    Default is FALSE.
+
+   SEE ALSO
+    HTMLM_Export
 htmlttf.gadget/HTML_Copy                              htmlttf.gadget/HTML_Copy
 
    NAME
@@ -510,6 +531,24 @@ htmlttf.gadget/HTMLTTF_Size
    FUNCTION
     If TRUE, documents without <body bgcolor/text> are drawn with the
     screen's BACKGROUNDPEN/TEXTPEN instead of black on white. Default FALSE.
+htmlttf.gadget/HTML_TableGrid                    htmlttf.gadget/HTML_TableGrid
+
+   NAME
+    HTML_TableGrid -- (BOOL) thin grey lines in tables without border (V1.2)
+
+   USAGE
+    (OM_NEW, OM_SET, OM_GET)
+
+   FUNCTION
+    If TRUE, tables without a BORDER attribute get thin light grey lines
+    between and around their cells and a little room inside the cells, as
+    GitHub shows Markdown tables (Markdown converters write tables without
+    BORDER). Tables with BORDER keep their raised and recessed frames.
+    Printing and export (HTMLM_Export, HTMLM_PrintBegin) use the setting
+    too. Default is FALSE: such tables have no lines, as in a browser.
+
+   SEE ALSO
+    HTMLM_Export
 htmlttf.gadget/HTML_Text                              htmlttf.gadget/HTML_Text
 
    NAME

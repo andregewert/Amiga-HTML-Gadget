@@ -424,8 +424,12 @@ static LONG get_pen(struct HTMLData *d, struct GadgetInfo *gi, ULONG col, int de
         if (d->pens[i].rgb == col) return d->pens[i].pen >= 0 ? d->pens[i].pen : dpens[deflt];
 
     r = (col >> 16) & 0xFF; g = (col >> 8) & 0xFF; b = col & 0xFF;
+    /* Very light colours (code and table backgrounds) are near enough to
+     * white for PRECISION_IMAGE to take the white pen: they get a pen of
+     * their own if one is free                                          */
     pen = ObtainBestPen(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL,
-                        OBP_Precision, PRECISION_IMAGE, TAG_DONE);
+                        OBP_Precision, r >= 0xE0 && g >= 0xE0 && b >= 0xE0 && (r & g & b) != 0xFF ?
+                        PRECISION_EXACT : PRECISION_IMAGE, TAG_DONE);
     if (d->npens < MAXPENS) {
         d->pens[d->npens].rgb = col;
         d->pens[d->npens].pen = pen;
@@ -714,7 +718,10 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
             }
             break;
         case IT_FRAME:
-            if (it->style & FR_RAISED) bevel(rp, x, y, it->w, it->h, light, dark);
+            if (col != COL_NONE) {                          /* flat, in a colour (HTML_TableGrid) */
+                LONG pen = get_pen(d, gi, col, SHADOWPEN);
+                bevel(rp, x, y, it->w, it->h, pen, pen);
+            } else if (it->style & FR_RAISED) bevel(rp, x, y, it->w, it->h, light, dark);
             else bevel(rp, x, y, it->w, it->h, dark, light);
             break;
         case IT_IMAGE: {
@@ -1468,6 +1475,16 @@ static ULONG set_attrs(Class *cl, Object *o, struct opSet *msg)
             d->laywidth = -1;
             redo = TRUE;
             break;
+        case HTML_TableGrid:
+            d->env.table_grid = data ? TRUE : FALSE;
+            d->laywidth = -1;
+            redo = TRUE;
+            break;
+        case HTML_CodeStyle:
+            d->env.code_style = data ? TRUE : FALSE;
+            d->laywidth = -1;
+            redo = TRUE;
+            break;
         case HTML_LoadImages:
             d->loadimages = data ? TRUE : FALSE;
             break;
@@ -1534,6 +1551,8 @@ static ULONG get_attr(Class *cl, Object *o, struct opGet *msg)
     case HTML_LineHeight:   *store = d->env.font_height[HF_INDEX(0, 3)] + 1; return 1;
     case HTML_AutoAnchors:  *store = d->autoanchors; return 1;
     case HTML_FitImages:   *store = d->env.fit_images; return 1;
+    case HTML_TableGrid:   *store = d->env.table_grid; return 1;
+    case HTML_CodeStyle:   *store = d->env.code_style; return 1;
     case HTML_LoadImages:   *store = d->loadimages; return 1;
     case HTML_ImagesTotal:  *store = d->imgtotal; return 1;
     case HTML_ImagesLoaded: *store = d->imgloaded; return 1;
@@ -1625,6 +1644,8 @@ static Object *om_new(Class *cl, Object *o, struct opSet *msg)
     d->env.text_width = text_width_cb;
     d->env.margin = d->margin;
     d->env.fit_images = GetTagData(HTML_FitImages, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
+    d->env.table_grid = GetTagData(HTML_TableGrid, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
+    d->env.code_style = GetTagData(HTML_CodeStyle, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
     d->env.system_colors = d->syscolors;
     for (i = 0; i < HF_NUM; i++) d->use[i] = GfxBase->DefaultFont;
     open_fonts(d, 1UL << HF_INDEX(0, 3));
@@ -1874,7 +1895,7 @@ struct ExportArgs {
 static ULONG export_func(APTR arg)
 {
     struct ExportArgs *a = arg;
-    a->result = html_export(a->d->doc, a->o, a->tags, a->d->env.fit_images, export_image, export_image_free, a->d);
+    a->result = html_export(a->d->doc, a->o, a->tags, &a->d->env, export_image, export_image_free, a->d);
     return 0;
 }
 

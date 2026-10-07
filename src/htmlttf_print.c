@@ -81,7 +81,9 @@ struct TPrint *tp_begin(struct HDoc *doc, const struct TRender *screen, const st
     p->env.user = p;
     p->env.text_width = text_width_cb;
     p->env.fit_images = o->fit_images;
-    p->env.generation = 1;
+    p->env.table_grid = o->table_grid;
+    p->env.code_style = o->code_style;
+    p->env.generation = html_print_generation();     /* see html_print.c */
 
     width = (o->paper_w - o->margin[0] - o->margin[2]) * 4 / 3;
     p->height = (o->paper_h - o->margin[1] - o->margin[3]) * 4 / 3;

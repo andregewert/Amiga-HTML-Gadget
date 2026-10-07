@@ -138,6 +138,8 @@ int main(int argc, char **argv)
     env.text_width = tw;
     env.margin = 8;
     env.fit_images = getenv("FIT") != NULL;     /* HTML_FitImages */
+    env.table_grid = getenv("GRID") != NULL;    /* HTML_TableGrid */
+    env.code_style = getenv("CODE") != NULL;    /* HTML_CodeStyle */
     tr_metrics(&R, &env);
     lay = html_layout(doc, &env, width);
     {   /* optional test selection: argv[7] = "first,last" item */

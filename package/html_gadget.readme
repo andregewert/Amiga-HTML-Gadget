@@ -86,6 +86,9 @@ History
    level 2: LZW in ASCII85), JPEG files are passed on as they are;
    HTMLEX_PSLevel 1 writes PostScript level 1 for old printers;
    HTMLEX_ImageDPI scales pictures down to a resolution for smaller files
+ - new attributes HTML_TableGrid (thin grey lines in tables without
+   border) and HTML_CodeStyle (grey backgrounds for code, bar for quotes),
+   for Markdown as GitHub shows it; off by default
  - new attribute HTML_FitImages: pictures wider than the text are
    scaled down to its width (like max-width: 100% in CSS), also when
    printing; off by default, handy for Markdown with big screenshots
@@ -147,6 +150,9 @@ Versionsgeschichte
    Level 2: LZW in ASCII85), JPEG-Dateien werden unverändert übernommen;
    HTMLEX_PSLevel 1 schreibt PostScript Level 1 für alte Drucker;
    HTMLEX_ImageDPI verkleinert Bilder auf eine Auflösung für kleinere Dateien
+ - neue Attribute HTML_TableGrid (dünne graue Linien in Tabellen ohne
+   border) und HTML_CodeStyle (graue Hintergründe für Code, Balken bei
+   Zitaten), für Markdown wie bei GitHub; abgeschaltet
  - neues Attribut HTML_FitImages: Bilder, die breiter als der Text
    sind, werden auf seine Breite verkleinert (wie max-width: 100% in
    CSS), auch beim Drucken; abgeschaltet, praktisch für Markdown mit

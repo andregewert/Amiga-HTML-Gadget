@@ -816,7 +816,7 @@ static void draw_item(struct Ctx *c, long i, const struct HPrintOpts *opt)
         if (!draw_image(c, it)) stroke_rect(c, it->x, it->y, it->w, it->h, C_RULE);
         break;
     case IT_FRAME:
-        stroke_rect(c, it->x, it->y, it->w, it->h, C_RULE);
+        stroke_rect(c, it->x, it->y, it->w, it->h, it->color != COL_NONE ? it->color : C_RULE);
         break;
     case IT_BULLET:
         draw_bullet(c, it);
@@ -918,6 +918,13 @@ long *html_print_paginate(struct HLayout *lay, void *pool, long height, long *co
 }
 
 /* footer text with %p and %n replaced */
+unsigned long html_print_generation(void)
+{
+    static unsigned long gen = 0x80000000UL;
+    if (++gen < 0x80000000UL) gen = 0x80000000UL;
+    return gen;
+}
+
 long html_print_footer(char *buf, long size, const char *fmt, long page, long pages)
 {
     long n = 0;
@@ -1340,6 +1347,8 @@ long html_print(struct HDoc *doc, const struct HPrintOpts *o, long *pages)
     for (i = 0; i < (long)sizeof(c); i++) ((char *)&c)[i] = 0;
     for (i = 0; i < (long)sizeof(env); i++) ((char *)&env)[i] = 0;
     env.fit_images = o->fit_images;
+    env.table_grid = o->table_grid;
+    env.code_style = o->code_style;
     c.out.o = o;
     c.opt = o;
     c.doc = doc;
@@ -1360,7 +1369,9 @@ long html_print(struct HDoc *doc, const struct HPrintOpts *o, long *pages)
     }
     env.user = &c;
     env.text_width = text_width_cb;
-    env.generation = 1;
+    /* its own value: cells measured for the screen (generation from 1
+     * up) or another print must not be taken from the cache          */
+    env.generation = html_print_generation();
 
     width = (o->paper_w - o->margin[0] - o->margin[2]) * 4 / 3;
     height = (o->paper_h - o->margin[1] - o->margin[3]) * 4 / 3;

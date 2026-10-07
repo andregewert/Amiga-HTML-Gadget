@@ -1101,6 +1101,16 @@ static ULONG set_attrs(Class *cl, Object *o, struct opSet *msg)
             d->laywidth = -1;
             redo = TRUE;
             break;
+        case HTML_TableGrid:
+            d->env.table_grid = data ? TRUE : FALSE;
+            d->laywidth = -1;
+            redo = TRUE;
+            break;
+        case HTML_CodeStyle:
+            d->env.code_style = data ? TRUE : FALSE;
+            d->laywidth = -1;
+            redo = TRUE;
+            break;
         case HTML_LoadImages:
             d->loadimages = data ? TRUE : FALSE;
             break;
@@ -1165,6 +1175,8 @@ static ULONG get_attr(Class *cl, Object *o, struct opGet *msg)
     case HTML_LineHeight:    *store = d->env.font_height[HF_INDEX(0, 3)] + 1; return 1;
     case HTML_AutoAnchors:   *store = d->autoanchors; return 1;
     case HTML_FitImages:    *store = d->env.fit_images; return 1;
+    case HTML_TableGrid:    *store = d->env.table_grid; return 1;
+    case HTML_CodeStyle:    *store = d->env.code_style; return 1;
     case HTML_LoadImages:    *store = d->loadimages; return 1;
     case HTML_ImagesTotal:   *store = d->imgtotal; return 1;
     case HTML_ImagesLoaded:  *store = d->imgloaded; return 1;
@@ -1236,6 +1248,8 @@ static Object *om_new(Class *cl, Object *o, struct opSet *msg)
     d->env.text_width = text_width_cb;
     d->env.margin = d->margin;
     d->env.fit_images = GetTagData(HTML_FitImages, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
+    d->env.table_grid = GetTagData(HTML_TableGrid, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
+    d->env.code_style = GetTagData(HTML_CodeStyle, FALSE, msg->ops_AttrList) ? TRUE : FALSE;
     d->env.system_colors = d->syscolors;
     ObtainSemaphore(&d->lock);
     call_big_stack(d->stack, metrics_func, d);
@@ -1516,7 +1530,7 @@ struct ExportArgs {
 static ULONG export_func(APTR arg)
 {
     struct ExportArgs *a = arg;
-    a->result = html_export(a->d->doc, a->o, a->tags, a->d->env.fit_images, export_image, export_image_free, a->d);
+    a->result = html_export(a->d->doc, a->o, a->tags, &a->d->env, export_image, export_image_free, a->d);
     return 0;
 }
 
@@ -1586,6 +1600,8 @@ static LONG print_begin(Class *cl, Object *o, struct hmPrintBegin *msg)
     a.opt.font_size = GetTagData(HTMLEX_FontSize, 100, tags);
     a.opt.backgrounds = GetTagData(HTMLEX_Backgrounds, TRUE, tags) != 0;
     a.opt.fit_images = a.d->env.fit_images;
+    a.opt.table_grid = a.d->env.table_grid;
+    a.opt.code_style = a.d->env.code_style;
     a.opt.footer = (const char *)GetTagData(HTMLEX_Footer, 0, tags);
 
     ObtainSemaphore(&a.d->lock);

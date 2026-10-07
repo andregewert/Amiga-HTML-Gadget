@@ -23,6 +23,8 @@ struct TPrintOpts {
     long        font_size;          /* normal text in 1/10 points */
     int         backgrounds;        /* print background colours */
     int         fit_images;         /* pictures not wider than the text (HEnv.fit_images) */
+    int         table_grid;         /* HEnv.table_grid */
+    int         code_style;         /* HEnv.code_style */
     const char *footer;             /* "%p / %n" or NULL */
 };
 

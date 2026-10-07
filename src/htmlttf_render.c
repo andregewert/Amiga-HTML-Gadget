@@ -405,7 +405,10 @@ void tr_render_strip(struct TRender *r, struct HLayout *lay, int syscolors, stru
                 s_bevel(s, it->x, it->y, it->w, it->h, COL_DARK, COL_LIGHT);
             break;
         case IT_FRAME:
-            if (it->style & FR_RAISED) s_bevel(s, it->x, it->y, it->w, it->h, COL_LIGHT, COL_DARK);
+            if (it->color != COL_NONE) {                    /* flat, in a colour (HTML_TableGrid) */
+                unsigned long c = to_rgb(r, it->color, PEN_TEXT, -1);
+                s_bevel(s, it->x, it->y, it->w, it->h, c, c);
+            } else if (it->style & FR_RAISED) s_bevel(s, it->x, it->y, it->w, it->h, COL_LIGHT, COL_DARK);
             else s_bevel(s, it->x, it->y, it->w, it->h, COL_DARK, COL_LIGHT);
             break;
         case IT_IMAGE:

@@ -5,7 +5,7 @@
 /* host test of the print engine: writes an HTML file as PostScript or
  * PDF (format from the file name)
  *
- *   hostprint <page.html> <out.ps|out.pdf> [serif] [letter] [nobg] [ps1] [dpi=n]
+ *   hostprint <page.html> <out.ps|out.pdf> [serif] [letter] [nobg] [ps1] [grid] [code] [dpi=n]
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -132,6 +132,8 @@ int main(int argc, char **argv)
         else if (!strcmp(argv[i], "letter")) { o.paper_w = 612; o.paper_h = 792; }
         else if (!strcmp(argv[i], "nobg")) o.backgrounds = 0;
         else if (!strcmp(argv[i], "ps1")) o.ps_level = 1;
+        else if (!strcmp(argv[i], "grid")) o.table_grid = 1;
+        else if (!strcmp(argv[i], "code")) o.code_style = 1;
         else if (!strncmp(argv[i], "dpi=", 4)) o.image_dpi = atol(argv[i] + 4);
     }
     o.write = out;

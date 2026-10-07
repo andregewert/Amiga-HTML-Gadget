@@ -133,6 +133,8 @@ through `exec.library/StackSwap()`, as the gadget does itself. HTMLDemo uses the
 | `HTML_Font` / `HTML_FixedFont` | struct TextAttr * | I | proportional / fixed base font (html.gadget) |
 | `HTML_SystemColors` | BOOL | ISG | screen colours instead of black on white for plain documents |
 | `HTML_Margin` | LONG | ISG | page margin (default 8) |
+| `HTML_TableGrid` | BOOL | ISG | thin light grey lines in tables without `border`, as on GitHub (default FALSE, V1.2) |
+| `HTML_CodeStyle` | BOOL | ISG | grey background for code blocks and inline code, grey bar for quotes, as on GitHub (default FALSE, V1.2) |
 | `HTML_FitImages` | BOOL | ISG | scale pictures wider than the text down to its width, like `max-width: 100%`; also when printing (default FALSE, V1.2) |
 | `HTML_LineHeight` | LONG | G | line height, e.g. as scroll step |
 | `HTML_AutoAnchors` | BOOL | ISG | handle `#anchor` links internally (default TRUE) |
