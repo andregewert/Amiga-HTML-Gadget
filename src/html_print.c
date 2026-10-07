@@ -67,6 +67,7 @@ struct Ctx {
     const struct HPrintOpts *opt;
     void          **imgs;           /* PDF: the pictures with an image object */
     long            nimgs;
+    int             pdf14;          /* a soft mask was written: PDF 1.4 */
     long           *lzwkey;         /* LZW hash table, allocated when needed */
     short          *lzwcode;
     struct HDoc    *doc;
@@ -280,11 +281,19 @@ static void fill_pt(struct Ctx *c, long x, long y, long w, long h, unsigned long
     puts_(o, " re f\n");
 }
 
+/* the stroke colour; in PostScript RG and rg are both setrgbcolor, so
+ * the fill colour is unknown afterwards                               */
+static void stroke_colour(struct Ctx *c, unsigned long rgb)
+{
+    put_rgb(&c->out, rgb, "RG");
+    if (c->opt->format != HP_PDF) c->fill = ~0UL;
+}
+
 static void stroke_rect(struct Ctx *c, long x, long y, long w, long h, unsigned long rgb)
 {
     struct Out *o = &c->out;
     if (w <= 0 || h <= 0) return;
-    put_rgb(o, rgb, "RG");
+    stroke_colour(c, rgb);
     puts_(o, "0.5 w ");
     put_xy(o, X(c, x) + 25, Y(c, y + h) + 25);
     putc_(o, ' ');
@@ -387,7 +396,7 @@ static void draw_bullet(struct Ctx *c, struct HItem *it)
 
     if (it->style == BUL_SQUARE) fill_pt(c, x, y, s, s, rgb);
     else if (it->style == BUL_CIRCLE) {
-        put_rgb(o, rgb, "RG");
+        stroke_colour(c, rgb);
         puts_(o, "0.6 w\n");
         rrect_path(o, x + 30, y + 30, x + s - 30, y + s - 30, s / 2 - 30);
         puts_(o, "S\n");
@@ -419,7 +428,7 @@ static void draw_check(struct Ctx *c, struct HItem *it)
             rrect_path(o, x0 + bw, y0 + bw, x1 - bw, y1 - bw, r > bw ? r - bw : 0);
             puts_(o, "f\n");
         } else {
-            put_rgb(o, C_MARK, "RG");
+            stroke_colour(c, C_MARK);
             put_fix(o, s * 2 / 15);
             puts_(o, " w 1 J 1 j\n");
             move_to(o, x0 + s * 25 / 100, y1 - s * 52 / 100);
@@ -1168,6 +1177,7 @@ static int pdf_image_obj(struct Ctx *c, long *offs, long num, void *img)
         put_long(w, pi.h);
         puts_(w, " /ColorSpace /DeviceRGB /BitsPerComponent 8");
         if (alpha) {
+            c->pdf14 = 1;                   /* soft masks are PDF 1.4 */
             puts_(w, " /SMask ");
             put_long(w, num + 2);
             puts_(w, " 0 R");
@@ -1208,7 +1218,9 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
     pg = 17 + 4 * c->nimgs;
     nobj = pg - 1 + 2 * count;
     if (!(offs = hsys_alloc(w->pool, (nobj + 1) * sizeof(long)))) { w->oom = 1; return; }
-    puts_(w, "%PDF-1.4\n%\xe2\xe3\xcf\xd3\n");
+    /* PDF 1.3; a soft mask (transparent picture) needs 1.4, which the
+     * catalog says then (/Version, written after the pictures)          */
+    puts_(w, "%PDF-1.3\n%\xe2\xe3\xcf\xd3\n");
 
     /* pictures first: those without pixels are taken out of the list */
     for (i = k = 0; i < c->nimgs; i++) {
@@ -1218,7 +1230,8 @@ static void write_pdf(struct Ctx *c, const struct HPrintOpts *o, long *tops, lon
     c->nimgs = k;
 
     pdf_obj(w, offs, 1);
-    puts_(w, "<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+    puts_(w, c->pdf14 ? "<< /Type /Catalog /Version /1.4 /Pages 2 0 R >>\nendobj\n"
+                      : "<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
     pdf_obj(w, offs, 2);
     puts_(w, "<< /Type /Pages /Count ");
     put_long(w, count);

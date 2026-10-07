@@ -4,7 +4,8 @@
  * Lays the document out again with the metrics of the standard PostScript
  * fonts (Helvetica or Times, Courier) for the width of the paper, breaks
  * it into pages and writes PostScript (level 2, or level 1 with optional
- * level 2 page size) or PDF 1.4. Pictures are compressed (LZW, in PDF
+ * level 2 page size) or PDF 1.3 (1.4 with transparent pictures, said in
+ * the catalog). Pictures are compressed (LZW, in PDF
  * with PNG predictors; JPEG files are passed on as they are), except in
  * PostScript level 1. Text stays text, no fonts are embedded; the
  * characters are ISO-8859-1. Platform independent like the rest of the
