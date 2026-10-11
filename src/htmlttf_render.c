@@ -358,13 +358,25 @@ void tr_render_strip(struct TRender *r, struct HLayout *lay, int syscolors, stru
 {
     unsigned long bg = to_rgb(r, lay ? lay->bgcolor : (syscolors ? COL_PEN | PEN_BACKGROUND : DEF_BG),
                               PEN_BACKGROUND, -1);
-    long i, ytop = s->dy, ybot = s->dy + s->h, xl = s->dx, xr = s->dx + s->w;
+    long i, first = 0, last, ytop = s->dy, ybot = s->dy + s->h, xl = s->dx, xr = s->dx + s->w;
 
     s_fill(s, s->dx, s->dy, s->dx + s->w - 1, s->dy + s->h - 1, bg);
     if (r->bgimg) s_tile(s, r->bgimg, 0, 0, s->dx, s->dy, s->dx + s->w - 1, s->dy + s->h - 1);
     if (!lay) return;
 
-    for (i = 0; i < lay->nitems; i++) {
+    last = lay->nitems - 1;
+    if (r->idxlay == lay && r->nbands > 0) {         /* only the items of these bands */
+        long b0 = ytop < 0 ? 0 : ytop / r->band, b1 = ybot <= 0 ? 0 : (ybot - 1) / r->band, b;
+        if (b0 >= r->nbands) b0 = r->nbands - 1;
+        if (b1 >= r->nbands) b1 = r->nbands - 1;
+        first = lay->nitems;
+        last = -1;
+        for (b = b0; b <= b1; b++) {
+            if (r->bandfirst[b] < first) first = r->bandfirst[b];
+            if (r->bandlast[b] > last) last = r->bandlast[b];
+        }
+    }
+    for (i = first; i <= last; i++) {
         struct HItem *it = &lay->items[i];
         if (it->type == IT_TEXT) {
             /* the underline may lie below the box and reach to the next

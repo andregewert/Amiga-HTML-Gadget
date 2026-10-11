@@ -85,6 +85,14 @@ struct HImage {
 struct PenEntry {
     ULONG rgb;
     LONG  pen;
+    BOOL  own;                       /* obtained (else only found) */
+};
+
+/* a layered rastport on a bitmap of its own (area_new()) */
+struct BMArea {
+    struct BitMap     *bm;
+    struct Layer_Info *li;
+    struct Layer      *layer;
 };
 
 struct HTMLData {
@@ -142,6 +150,18 @@ struct HTMLData {
     struct Layer     *layer;
     LONG              bmw, bmh;
     struct BitMap    *friend;
+    /* Scrolling by a few lines moves the buffer and draws only the new
+     * strip. bufok: the buffer shows lay at buftop/bufleft and nothing
+     * else changed; scrollonly: the redraw is for a new position only. */
+    BOOL              bufok, scrollonly;
+    LONG              buftop, bufleft;
+    struct HLayout   *buflay;
+    struct BMArea     strip;             /* the new strip is drawn here */
+    LONG              stripw, striph;
+
+    /* items per band of BAND pixels: first and last index (draw_content) */
+    struct HLayout   *idxlay;
+    LONG             *bandfirst, *bandlast, nbands;
 
     struct Screen    *scr;               /* screen of the last GM_RENDER (for printing) */
     struct BMPrint   *print;             /* HTMLM_PrintBegin .. HTMLM_PrintEnd */
@@ -401,43 +421,90 @@ static void release_pens(struct HTMLData *d)
     int i;
     if (d->cm)
         for (i = 0; i < d->npens; i++)
-            if (d->pens[i].pen >= 0) ReleasePen(d->cm, d->pens[i].pen);
+            if (d->pens[i].pen >= 0 && d->pens[i].own) ReleasePen(d->cm, d->pens[i].pen);
     d->npens = 0;
     d->cm = NULL;
 }
 
-static LONG get_pen(struct HTMLData *d, struct GadgetInfo *gi, ULONG col, int deflt)
+/* 0xRRGGBB of pen n */
+static ULONG cm_rgb(struct ColorMap *cm, LONG n)
 {
-    struct ColorMap *cm = gi->gi_Screen->ViewPort.ColorMap;
-    UWORD *dpens = gi->gi_DrInfo->dri_Pens;
+    ULONG rgb[3];
+    GetRGB32(cm, n, 1, rgb);
+    return ((rgb[0] >> 8) & 0xFF0000) | ((rgb[1] >> 16) & 0xFF00) | (rgb[2] >> 24);
+}
+
+#define NEAR_WHITE(c) (((c) & 0xF8F8F8UL) == 0xF8F8F8UL)
+
+/* the pen of a light colour that is not white, without obtaining it: the
+ * nearest light colour of the palette that is not white, -1 if none   */
+static LONG light_pen(struct ColorMap *cm, ULONG col)
+{
+    LONG n, best = -1, bestd = 0x7FFFFFFF, cnt = cm->Count > 256 ? 256 : cm->Count;
+    for (n = 0; n < cnt; n++) {
+        ULONG c = cm_rgb(cm, n);
+        LONG dr = (LONG)(c >> 16 & 0xFF) - (LONG)(col >> 16 & 0xFF), dg = (LONG)(c >> 8 & 0xFF) - (LONG)(col >> 8 & 0xFF),
+             db = (LONG)(c & 0xFF) - (LONG)(col & 0xFF), dist = dr * dr + dg * dg + db * db;
+        if (NEAR_WHITE(c) || (c >> 16 & 0xFF) < 0xC0 || (c >> 8 & 0xFF) < 0xC0 || (c & 0xFF) < 0xC0) continue;
+        if (dist < bestd) { bestd = dist; best = n; }
+    }
+    return best;
+}
+
+/* the pen of an RGB colour, kept until the screen changes; -1 if none */
+static LONG rgb_pen(struct HTMLData *d, struct ColorMap *cm, ULONG col)
+{
     ULONG r, g, b;
     LONG pen;
+    BOOL light, own = TRUE;
     int i;
 
-    if (col & COL_PEN) return dpens[col & 0xFF];
-    if (!COL_IS_RGB(col)) return dpens[deflt];
     if (cm != d->cm) {
         release_pens(d);
         d->cm = cm;
     }
     for (i = 0; i < d->npens; i++)
-        if (d->pens[i].rgb == col) return d->pens[i].pen >= 0 ? d->pens[i].pen : dpens[deflt];
+        if (d->pens[i].rgb == col) return d->pens[i].pen;
 
     r = (col >> 16) & 0xFF; g = (col >> 8) & 0xFF; b = col & 0xFF;
     /* Very light colours (code and table backgrounds) are near enough to
      * white for PRECISION_IMAGE to take the white pen: they get a pen of
-     * their own if one is free                                          */
+     * their own if one is free, else the nearest light colour that is
+     * not white (all pens taken, e.g. by pictures on AGA)              */
+    light = r >= 0xE0 && g >= 0xE0 && b >= 0xE0 && !NEAR_WHITE(col);
     pen = ObtainBestPen(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL,
-                        OBP_Precision, r >= 0xE0 && g >= 0xE0 && b >= 0xE0 && (r & g & b) != 0xFF ?
-                        PRECISION_EXACT : PRECISION_IMAGE, TAG_DONE);
+                        OBP_Precision, light ? PRECISION_EXACT : PRECISION_IMAGE, TAG_DONE);
+    if (pen < 0 && light)
+        pen = ObtainBestPen(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL,
+                            OBP_Precision, PRECISION_IMAGE, TAG_DONE);
+    if (pen >= 0 && light && NEAR_WHITE(cm_rgb(cm, pen))) {
+        LONG alt = light_pen(cm, col);
+        if (alt >= 0) {
+            ReleasePen(cm, pen);
+            pen = alt;
+            own = FALSE;
+        }
+    }
     if (d->npens < MAXPENS) {
         d->pens[d->npens].rgb = col;
         d->pens[d->npens].pen = pen;
+        d->pens[d->npens].own = own;
         d->npens++;
-    } else if (pen >= 0) {
+    } else if (pen >= 0 && own) {
         ReleasePen(cm, pen);          /* cache full: use and forget */
         pen = FindColor(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL, -1);
     }
+    return pen;
+}
+
+static LONG get_pen(struct HTMLData *d, struct GadgetInfo *gi, ULONG col, int deflt)
+{
+    UWORD *dpens = gi->gi_DrInfo->dri_Pens;
+    LONG pen;
+
+    if (col & COL_PEN) return dpens[col & 0xFF];
+    if (!COL_IS_RGB(col)) return dpens[deflt];
+    pen = rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, col);
     return pen >= 0 ? pen : dpens[deflt];
 }
 
@@ -505,6 +572,47 @@ static ULONG layout_func(APTR arg)
     return 0;
 }
 
+#define BAND 128
+
+static void free_index(struct HTMLData *d)
+{
+    if (d->bandfirst) FreeVec(d->bandfirst);
+    d->bandfirst = d->bandlast = NULL;
+    d->nbands = 0;
+    d->idxlay = NULL;
+}
+
+/* bandfirst/bandlast for d->lay; without memory draw_content() goes
+ * through all items                                                   */
+static void build_index(struct HTMLData *d)
+{
+    struct HLayout *lay = d->lay;
+    LONG n, i, b, b0, b1;
+
+    if (!lay || d->idxlay == lay) return;
+    free_index(d);
+    n = lay->height / BAND + 1;
+    if (!(d->bandfirst = AllocVec(2 * n * sizeof(LONG), MEMF_ANY))) return;
+    d->bandlast = d->bandfirst + n;
+    for (b = 0; b < n; b++) {
+        d->bandfirst[b] = lay->nitems;
+        d->bandlast[b] = -1;
+    }
+    for (i = 0; i < lay->nitems; i++) {
+        struct HItem *it = &lay->items[i];
+        b0 = it->y < 0 ? 0 : it->y / BAND;
+        b1 = it->y + it->h <= 0 ? 0 : (it->y + it->h - 1) / BAND;
+        if (b0 >= n) b0 = n - 1;
+        if (b1 >= n) b1 = n - 1;
+        for (b = b0; b <= b1; b++) {
+            if (i < d->bandfirst[b]) d->bandfirst[b] = i;
+            d->bandlast[b] = i;
+        }
+    }
+    d->nbands = n;
+    d->idxlay = lay;
+}
+
 /* returns TRUE if the scroll position was changed by a pending anchor */
 static BOOL ensure_layout(struct HTMLData *d)
 {
@@ -512,6 +620,8 @@ static BOOL ensure_layout(struct HTMLData *d)
 
     if (!d->doc || !d->havebox) return FALSE;
     if (d->laywidth != d->visw) {
+        free_index(d);
+        d->bufok = FALSE;
         if (d->lay) { html_free_layout(d->lay); d->lay = NULL; }
         la.d = d;
         la.width = d->visw;
@@ -534,12 +644,37 @@ static BOOL ensure_layout(struct HTMLData *d)
 /* ------------------------------------------------------------------ */
 /* rendering                                                           */
 
+/* a layered rastport on a new bitmap of the screen's format */
+static struct RastPort *area_new(struct BMArea *a, LONG w, LONG h, struct BitMap *friend)
+{
+    a->li = NULL;
+    a->layer = NULL;
+    if (!(a->bm = AllocBitMap(w, h, GetBitMapAttr(friend, BMA_DEPTH), BMF_MINPLANES, friend))) return NULL;
+    if ((a->li = NewLayerInfo()))
+        a->layer = CreateUpfrontLayer(a->li, a->bm, 0, 0, w - 1, h - 1, LAYERSIMPLE, NULL);
+    return a->layer ? a->layer->rp : NULL;
+}
+
+static void area_free(struct BMArea *a)
+{
+    if (a->layer) DeleteLayer(0, a->layer);
+    if (a->li) DisposeLayerInfo(a->li);
+    WaitBlit();
+    if (a->bm) FreeBitMap(a->bm);
+    a->bm = NULL;
+    a->layer = NULL;
+    a->li = NULL;
+}
+
 static void free_buffer(struct HTMLData *d)
 {
     if (d->layer) { DeleteLayer(0, d->layer); d->layer = NULL; }
     if (d->li) { DisposeLayerInfo(d->li); d->li = NULL; }
     if (d->bm) { WaitBlit(); FreeBitMap(d->bm); d->bm = NULL; }
     d->bmw = d->bmh = 0;
+    if (d->strip.bm || d->strip.li) area_free(&d->strip);
+    d->stripw = d->striph = 0;
+    d->bufok = FALSE;
 }
 
 static struct RastPort *get_buffer(struct HTMLData *d, struct GadgetInfo *gi)
@@ -639,7 +774,7 @@ static struct HImage *fit_image(struct HImage *im, LONG w, LONG h);
 static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastPort *rp, LONG ox, LONG oy)
 {
     struct HLayout *lay = d->lay;
-    LONG light, dark, i, dx = ox - d->left, dy = oy - d->top;
+    LONG light, dark, i, first, last, dx = ox - d->left, dy = oy - d->top;
     LONG ytop = d->top, ybot = d->top + d->vish, xl = d->left, xr = d->left + d->visw;
     ULONG bg = lay ? lay->bgcolor : (d->syscolors ? COL_PEN | BACKGROUNDPEN : 0xFFFFFF);
 
@@ -653,7 +788,22 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
     light = get_pen(d, gi, COL_LIGHT, SHINEPEN);
     dark = get_pen(d, gi, COL_DARK, SHADOWPEN);
 
-    for (i = 0; i < lay->nitems; i++) {
+    /* only the items of the visible bands */
+    first = 0;
+    last = lay->nitems - 1;
+    if (lay == d->idxlay && d->nbands > 0) {
+        LONG b0 = ytop < 0 ? 0 : ytop / BAND, b1 = ybot <= 0 ? 0 : (ybot - 1) / BAND, b;
+        if (b0 >= d->nbands) b0 = d->nbands - 1;
+        if (b1 >= d->nbands) b1 = d->nbands - 1;
+        first = lay->nitems;
+        last = -1;
+        for (b = b0; b <= b1; b++) {
+            if (d->bandfirst[b] < first) first = d->bandfirst[b];
+            if (d->bandlast[b] > last) last = d->bandlast[b];
+        }
+    }
+
+    for (i = first; i <= last; i++) {
         struct HItem *it = &lay->items[i];
         ULONG col = it->color;
         LONG x, y;
@@ -779,6 +929,37 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
     SetSoftStyle(rp, 0, AskSoftStyle(rp));
 }
 
+/* The buffer shows the page dy pixels higher (dy < 0: lower): moves its
+ * content and draws the new strip, in a bitmap of its own (a clip region
+ * would blit masked pictures wrongly at its border on AGA, see the
+ * bitmap printing below). FALSE without memory for the strip.          */
+static BOOL scroll_buffer(struct HTMLData *d, struct GadgetInfo *gi, LONG dy)
+{
+    struct RastPort *srp;
+    LONG h = dy < 0 ? -dy : dy, w = d->visw, top = d->top, vish = d->vish;
+
+    if (d->stripw != w || d->striph < h) {
+        if (d->strip.bm || d->strip.li) area_free(&d->strip);
+        d->stripw = d->striph = 0;
+        if (!area_new(&d->strip, w, d->vish / 2 + 1, d->friend)) {
+            area_free(&d->strip);
+            return FALSE;
+        }
+        d->stripw = w;
+        d->striph = d->vish / 2 + 1;
+    }
+    srp = d->strip.layer->rp;
+    /* BltBitMap() copies overlapping areas of one bitmap correctly */
+    BltBitMap(d->bm, 0, dy > 0 ? h : 0, d->bm, 0, dy > 0 ? 0 : h, w, vish - h, 0xC0, 0xFF, NULL);
+    d->top = dy > 0 ? top + vish - h : top;
+    d->vish = h;
+    draw_content(d, gi, srp, 0, 0);
+    d->top = top;
+    d->vish = vish;
+    BltBitMap(d->strip.bm, 0, 0, d->bm, 0, dy > 0 ? vish - h : 0, w, h, 0xC0, 0xFF, NULL);
+    return TRUE;
+}
+
 static void render(struct HTMLData *d, struct Gadget *g, struct GadgetInfo *gi, struct RastPort *rp, BOOL full)
 {
     struct IBox box;
@@ -802,7 +983,17 @@ static void render(struct HTMLData *d, struct Gadget *g, struct GadgetInfo *gi, 
     }
 
     if ((brp = get_buffer(d, gi))) {
-        draw_content(d, gi, brp, 0, 0);
+        LONG dy = d->top - d->buftop;
+        build_index(d);
+        if (d->scrollonly && !full && d->bufok && d->buflay == d->lay && d->left == d->bufleft &&
+            (dy == 0 || ((dy < 0 ? -dy : dy) <= d->vish / 2 && scroll_buffer(d, gi, dy))))
+            ;                               /* moved, only the new strip drawn */
+        else
+            draw_content(d, gi, brp, 0, 0);
+        d->bufok = TRUE;
+        d->buftop = d->top;
+        d->bufleft = d->left;
+        d->buflay = d->lay;
         BltBitMapRastPort(d->bm, 0, 0, rp, ix, iy, d->visw, d->vish, 0xC0);
     } else if (rp->Layer) {
         /* not enough memory for the buffer: draw directly with clipping */
@@ -1329,6 +1520,14 @@ static BOOL set_document(struct HTMLData *d, CONST_STRPTR src, LONG len, CONST_S
     /* pictures are remapped for the gadget's screen; before the window is
      * open that is the default public screen                             */
     h_memset(&il, 0, sizeof(il));
+    /* the light colours first: the pictures may take the free pens */
+    if (gi && gi->gi_Screen && (d->env.code_style || d->env.table_grid)) {
+        ObtainSemaphore(&d->lock);
+        rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, HCOL_PREBG);
+        rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, HCOL_CODEBG);
+        rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, HCOL_GRID);
+        ReleaseSemaphore(&d->lock);
+    }
     if (d->loadimages) {
         if (gi && gi->gi_Screen) {
             load_images(&il, pa.doc, basedir, gi->gi_Screen);
@@ -1343,6 +1542,8 @@ static BOOL set_document(struct HTMLData *d, CONST_STRPTR src, LONG len, CONST_S
 
     ObtainSemaphore(&d->lock);
     print_free(d);                      /* belongs to the old document */
+    free_index(d);
+    d->bufok = FALSE;
     if (d->lay) { html_free_layout(d->lay); d->lay = NULL; }
     html_free_doc(d->doc);
     if (d->source) FreeVec(d->source);
@@ -1525,12 +1726,15 @@ static ULONG set_attrs(Class *cl, Object *o, struct opSet *msg)
     else if (!newdoc && !redo) moved = FALSE;
     ReleaseSemaphore(&d->lock);
 
+    if (newdoc || redo || repaint) d->bufok = FALSE;
     if (gi && repaint && !(newdoc || redo || moved)) {
         redraw(o, gi);
         rv = 1;
     }
     if (gi && (newdoc || redo || moved)) {
+        d->scrollonly = moved && !newdoc && !redo && !repaint;
         redraw(o, gi);            /* also lays out if needed */
+        d->scrollonly = FALSE;
         /* values coming in via OM_UPDATE (e.g. from a scroller) are not
          * echoed back, that would fight with the user dragging the knob */
         if (!update || newdoc || redo) notify(cl, o, gi, 0);
@@ -1676,6 +1880,7 @@ static void om_dispose(Class *cl, Object *o)
 
     print_free(d);
     free_buffer(d);
+    free_index(d);
     release_pens(d);
     if (d->lay) html_free_layout(d->lay);
     html_free_doc(d->doc);
@@ -2030,32 +2235,6 @@ struct BMRender {
     struct hmPrintRender *m;
     BOOL                  ok;
 };
-
-/* a layered rastport on a new bitmap of the screen's format */
-struct BMArea {
-    struct BitMap     *bm;
-    struct Layer_Info *li;
-    struct Layer      *layer;
-};
-
-static struct RastPort *area_new(struct BMArea *a, LONG w, LONG h, struct BitMap *friend)
-{
-    a->li = NULL;
-    a->layer = NULL;
-    if (!(a->bm = AllocBitMap(w, h, GetBitMapAttr(friend, BMA_DEPTH), BMF_MINPLANES, friend))) return NULL;
-    if ((a->li = NewLayerInfo()))
-        a->layer = CreateUpfrontLayer(a->li, a->bm, 0, 0, w - 1, h - 1, LAYERSIMPLE, NULL);
-    return a->layer ? a->layer->rp : NULL;
-}
-
-static void area_free(struct BMArea *a)
-{
-    if (a->layer) DeleteLayer(0, a->layer);
-    if (a->li) DisposeLayerInfo(a->li);
-    WaitBlit();
-    if (a->bm) FreeBitMap(a->bm);
-    a->bm = NULL;
-}
 
 static ULONG print_render_func(APTR arg)
 {

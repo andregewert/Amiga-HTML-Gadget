@@ -44,6 +44,7 @@
 #include <proto/utility.h>
 #include <proto/datatypes.h>
 #include <proto/cybergraphics.h>
+#include <proto/layers.h>
 
 #include <ft2build.h>
 #include FT_FREETYPE_H
@@ -61,6 +62,7 @@
 
 #define BIG_STACK     (64 * 1024)
 #define STRIP_H       32          /* rows rendered per pass */
+#define BAND          128         /* rows per band of the item index */
 #define FRAMEW        1
 #define MAXPENS       128         /* pens obtained on palette screens */
 #define NVAR          TR_NVAR
@@ -144,6 +146,22 @@ struct HTMLData {
     struct ColorMap  *cm;
     LONG              pens[MAXPENS];
     int               npens;
+
+    /* off-screen buffer of the visible area. Scrolling by a few lines
+     * moves it and renders only the new strip. bufok: it shows lay at
+     * buftop/bufleft and nothing else changed; scrollonly: the redraw
+     * is for a new position only.                                    */
+    struct BitMap    *bm;
+    struct Layer_Info *li;
+    struct Layer     *layer;
+    LONG              bmw, bmh;
+    struct BitMap    *friend;
+    BOOL              bufok, scrollonly;
+    LONG              buftop, bufleft;
+    struct HLayout   *buflay;
+
+    /* items per band (TRender.bandfirst/bandlast) */
+    long             *bands;
 };
 
 const ULONG html_inst_size = sizeof(struct HTMLData);
@@ -538,12 +556,87 @@ static ULONG layout_func(APTR arg)
     return 0;
 }
 
+static void free_index(struct HTMLData *d)
+{
+    if (d->bands) FreeVec(d->bands);
+    d->bands = NULL;
+    d->r.idxlay = NULL;
+    d->r.bandfirst = d->r.bandlast = NULL;
+    d->r.nbands = 0;
+}
+
+/* the band index of d->lay for tr_render_strip(), with its margins:
+ * text one line height lower (underline, glyphs), bullets it->w high */
+static void build_index(struct HTMLData *d)
+{
+    struct HLayout *lay = d->lay;
+    long n, i, b, b0, b1, *first, *last;
+
+    if (!lay || d->r.idxlay == lay) return;
+    free_index(d);
+    n = lay->height / BAND + 1;
+    if (!(d->bands = AllocVec(2 * n * sizeof(long), MEMF_ANY))) return;
+    first = d->bands;
+    last = d->bands + n;
+    for (b = 0; b < n; b++) {
+        first[b] = lay->nitems;
+        last[b] = -1;
+    }
+    for (i = 0; i < lay->nitems; i++) {
+        struct HItem *it = &lay->items[i];
+        long h = it->type == IT_TEXT ? 2 * it->h : it->type == IT_BULLET && it->w > it->h ? it->w : it->h;
+        b0 = it->y < 0 ? 0 : it->y / BAND;
+        b1 = it->y + h <= 0 ? 0 : (it->y + h - 1) / BAND;
+        if (b0 >= n) b0 = n - 1;
+        if (b1 >= n) b1 = n - 1;
+        for (b = b0; b <= b1; b++) {
+            if (i < first[b]) first[b] = i;
+            last[b] = i;
+        }
+    }
+    d->r.bandfirst = first;
+    d->r.bandlast = last;
+    d->r.nbands = n;
+    d->r.band = BAND;
+    d->r.idxlay = lay;
+}
+
+static void free_buffer(struct HTMLData *d)
+{
+    if (d->layer) { DeleteLayer(0, d->layer); d->layer = NULL; }
+    if (d->li) { DisposeLayerInfo(d->li); d->li = NULL; }
+    if (d->bm) { WaitBlit(); FreeBitMap(d->bm); d->bm = NULL; }
+    d->bmw = d->bmh = 0;
+    d->bufok = FALSE;
+}
+
+/* a bitmap of the screen's format for the visible area, NULL without
+ * memory (then the strips go to the window directly)                  */
+static struct RastPort *get_buffer(struct HTMLData *d, struct GadgetInfo *gi)
+{
+    struct BitMap *friend = gi->gi_Screen->RastPort.BitMap;
+
+    if (d->layer && d->bmw == d->visw && d->bmh == d->vish && d->friend == friend)
+        return d->layer->rp;
+    free_buffer(d);
+    d->bm = AllocBitMap(d->visw, d->vish, GetBitMapAttr(friend, BMA_DEPTH), BMF_MINPLANES, friend);
+    if (d->bm && (d->li = NewLayerInfo()))
+        d->layer = CreateUpfrontLayer(d->li, d->bm, 0, 0, d->visw - 1, d->vish - 1, LAYERSIMPLE, NULL);
+    if (!d->layer) { free_buffer(d); return NULL; }
+    d->bmw = d->visw;
+    d->bmh = d->vish;
+    d->friend = friend;
+    return d->layer->rp;
+}
+
 static BOOL ensure_layout(struct HTMLData *d)
 {
     struct LayoutArgs la;
 
     if (!d->doc || !d->havebox) return FALSE;
     if (d->laywidth != d->visw) {
+        free_index(d);
+        d->bufok = FALSE;
         if (d->lay) { html_free_layout(d->lay); d->lay = NULL; }
         la.d = d;
         la.width = d->visw;
@@ -568,9 +661,11 @@ struct RenderArgs {
     struct GadgetInfo *gi;
     struct RastPort   *rp;
     LONG               ix, iy;
+    LONG               y0, y1;          /* rows of the visible area to render */
+    BOOL               ok;              /* FALSE: no memory, nothing rendered */
 };
 
-static ULONG render_func(APTR arg)
+static ULONG render_strips(APTR arg)
 {
     struct RenderArgs *ra = arg;
     struct HTMLData *d = ra->d;
@@ -614,8 +709,8 @@ static ULONG render_func(APTR arg)
     s.buf = d->strip;
     s.w = d->visw;
     s.dx = d->left;
-    for (y = 0; y < d->vish; y += STRIP_H) {
-        s.h = d->vish - y < STRIP_H ? d->vish - y : STRIP_H;
+    for (y = ra->y0; y < ra->y1; y += STRIP_H) {
+        s.h = ra->y1 - y < STRIP_H ? ra->y1 - y : STRIP_H;
         s.dy = d->top + y;
         tr_render_strip(&d->r, d->lay, d->syscolors, &s);
         if (truecolor) {
@@ -628,6 +723,13 @@ static ULONG render_func(APTR arg)
         }
     }
     return 1;
+}
+
+static ULONG render_func(APTR arg)
+{
+    struct RenderArgs *ra = arg;
+    ra->ok = render_strips(arg) != 0;
+    return 0;
 }
 
 static void bevel_rp(struct RastPort *rp, LONG x, LONG y, LONG w, LONG h, LONG light, LONG dark)
@@ -645,6 +747,7 @@ static void render(struct HTMLData *d, struct Gadget *g, struct GadgetInfo *gi, 
 {
     struct IBox box;
     struct RenderArgs ra;
+    struct RastPort *brp;
 
     if (!gi || !rp) return;
     gadget_box(g, gi, &box);
@@ -660,10 +763,42 @@ static void render(struct HTMLData *d, struct Gadget *g, struct GadgetInfo *gi, 
     }
     ra.d = d;
     ra.gi = gi;
-    ra.rp = rp;
-    ra.ix = box.Left + inset(d);
-    ra.iy = box.Top + inset(d);
-    call_big_stack(d->stack, render_func, &ra);
+    ra.y0 = 0;
+    ra.y1 = d->vish;
+    build_index(d);
+    if ((brp = get_buffer(d, gi))) {
+        /* into the buffer; only moved by a few lines: the content moves
+         * (BltBitMap() copies overlapping areas of one bitmap correctly)
+         * and only the new strip is rendered                          */
+        LONG dy = d->top - d->buftop, h = dy < 0 ? -dy : dy;
+        BOOL ok = TRUE;
+        /* The strips are written by the CPU (WriteChunkyPixels() on
+         * planar screens), the blitter may still be copying the buffer
+         * to the window or moving it: wait for it first (seen on AGA). */
+        WaitBlit();
+        ra.rp = brp;
+        ra.ix = ra.iy = 0;
+        if (d->scrollonly && !full && d->bufok && d->buflay == d->lay && d->left == d->bufleft &&
+            h <= d->vish / 2) {
+            if (h) {
+                BltBitMap(d->bm, 0, dy > 0 ? h : 0, d->bm, 0, dy > 0 ? 0 : h, d->visw, d->vish - h, 0xC0, 0xFF, NULL);
+                WaitBlit();
+                ra.y0 = dy > 0 ? d->vish - h : 0;
+                ra.y1 = dy > 0 ? d->vish : h;
+                ok = call_big_stack(d->stack, render_func, &ra) && ra.ok;
+            }
+        } else ok = call_big_stack(d->stack, render_func, &ra) && ra.ok;
+        d->bufok = ok;
+        d->buftop = d->top;
+        d->bufleft = d->left;
+        d->buflay = d->lay;
+        BltBitMapRastPort(d->bm, 0, 0, rp, box.Left + inset(d), box.Top + inset(d), d->visw, d->vish, 0xC0);
+    } else {
+        ra.rp = rp;
+        ra.ix = box.Left + inset(d);
+        ra.iy = box.Top + inset(d);
+        call_big_stack(d->stack, render_func, &ra);
+    }
     ReleaseSemaphore(&d->lock);
 }
 
@@ -961,6 +1096,8 @@ static BOOL set_document(struct HTMLData *d, CONST_STRPTR src, LONG len, CONST_S
 
     ObtainSemaphore(&d->lock);
     if (d->print) { tp_end(d->print); d->print = NULL; }       /* belongs to the old document */
+    free_index(d);
+    d->bufok = FALSE;
     if (d->lay) { html_free_layout(d->lay); d->lay = NULL; }
     html_free_doc(d->doc);
     if (d->source) FreeVec(d->source);
@@ -1143,12 +1280,15 @@ static ULONG set_attrs(Class *cl, Object *o, struct opSet *msg)
     else if (!newdoc && !redo) moved = FALSE;
     ReleaseSemaphore(&d->lock);
 
+    if (newdoc || redo || repaint) d->bufok = FALSE;
     if (gi && repaint && !(newdoc || redo || moved)) {
         redraw(o, gi);
         rv = 1;
     }
     if (gi && (newdoc || redo || moved)) {
+        d->scrollonly = moved && !newdoc && !redo && !repaint;
         redraw(o, gi);
+        d->scrollonly = FALSE;
         if (!update || newdoc || redo) notify(cl, o, gi, 0);
         rv = 1;
     }
@@ -1275,6 +1415,8 @@ static void om_dispose(Class *cl, Object *o)
     if (d->print) tp_end(d->print);
     if (d->strip) FreeVec(d->strip);
     if (d->chunky) FreeVec(d->chunky);
+    free_buffer(d);
+    free_index(d);
     if (d->lay) html_free_layout(d->lay);
     html_free_doc(d->doc);
     free_images(d->images);

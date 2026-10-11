@@ -31,6 +31,11 @@ void  hsys_free(void *pool, void *mem, long size);
 #define COL_NONE  0xFF000000UL
 #define COL_IS_RGB(c) (((c) & 0xFF000000UL) == 0)
 
+/* colours of HEnv.table_grid / code_style, as GitHub shows Markdown */
+#define HCOL_GRID   0xD0D7DEUL      /* table lines, quote bar */
+#define HCOL_CODEBG 0xEFF1F3UL      /* inline code */
+#define HCOL_PREBG  0xF6F8FAUL      /* code blocks */
+
 /* ---- tags ------------------------------------------------------------ */
 
 enum {

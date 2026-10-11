@@ -71,6 +71,8 @@ struct TPrint *tp_begin(struct HDoc *doc, const struct TRender *screen, const st
     p->r.sel = 0;
     p->r.bgimg = 0;
     p->r.env = 0;
+    p->r.idxlay = 0;                /* the screen's band index */
+    p->r.nbands = 0;
 
     h_memset(&penv, 0, sizeof(penv));
     tr_metrics(&p->r, &penv);

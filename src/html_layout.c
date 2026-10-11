@@ -20,10 +20,10 @@
 
 enum { FK_TEXT, FK_BOX };
 
-/* HEnv.table_grid / code_style, as GitHub shows Markdown */
-#define C_GRID      0xD0D7DEUL      /* table lines, quote bar */
-#define C_CODEBG    0xEFF1F3UL      /* inline code */
-#define C_PREBG     0xF6F8FAUL      /* code blocks */
+/* HEnv.table_grid / code_style: HCOL_GRID, HCOL_CODEBG, HCOL_PREBG */
+#define C_GRID      HCOL_GRID
+#define C_CODEBG    HCOL_CODEBG
+#define C_PREBG     HCOL_PREBG
 
 /* text fragment flag: inline code (fixed font outside <pre>) */
 #define FRF_CODE     0x01

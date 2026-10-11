@@ -65,6 +65,12 @@ struct TRender {
     const struct HSel *sel;             /* text selection or NULL */
     struct TImage *bgimg;               /* <body background> or NULL */
     struct HEnv   *env;                 /* for measuring the selection */
+    /* optional: items per band of 'band' pixels of idxlay (first and
+     * last index, the margins of tr_render_strip() included); the
+     * platform builds it, tr_render_strip() then skips the other items */
+    const struct HLayout *idxlay;
+    const long    *bandfirst, *bandlast;
+    long           nbands, band;
 };
 
 struct TStrip {

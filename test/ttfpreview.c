@@ -153,6 +153,20 @@ int main(int argc, char **argv)
             R.penrgb[5] = 0x3B6BC0; R.penrgb[6] = 0xFFFFFF;
         }
     }
+    if (getenv("INDEX")) {      /* band index as htmlttf.gadget builds it (build_index()) */
+        long nb = lay->height / 128 + 1, i, b;
+        long *first = malloc(2 * nb * sizeof(long)), *last = first + nb;
+        for (b = 0; b < nb; b++) { first[b] = lay->nitems; last[b] = -1; }
+        for (i = 0; i < lay->nitems; i++) {
+            struct HItem *it = &lay->items[i];
+            long h = it->type == IT_TEXT ? 2 * it->h : it->type == IT_BULLET && it->w > it->h ? it->w : it->h;
+            long b0 = it->y < 0 ? 0 : it->y / 128, b1 = it->y + h <= 0 ? 0 : (it->y + h - 1) / 128;
+            if (b0 >= nb) b0 = nb - 1;
+            if (b1 >= nb) b1 = nb - 1;
+            for (b = b0; b <= b1; b++) { if (i < first[b]) first[b] = i; last[b] = i; }
+        }
+        R.idxlay = lay; R.bandfirst = first; R.bandlast = last; R.nbands = nb; R.band = 128;
+    }
     {
         struct TStrip s;
         FILE *o = fopen(out, "wb");
