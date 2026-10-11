@@ -881,12 +881,15 @@ static void free_images(struct HImage *im)
     }
 }
 
-/* builds an AmigaDOS path for src relative to base; FALSE for URLs */
+/* builds an AmigaDOS path for src relative to base; FALSE for URLs.
+ * An existing file gets its full path: HTMLM_Export loads the pictures
+ * again later, when the current directory may be another one.          */
 static BOOL resolve_path(CONST_STRPTR base, const char *src, char *out, LONG max)
 {
     char rel[256];
     const char *p;
     LONG n = 0;
+    BPTR lock;
 
     if (!src || !*src || !h_strnicmp(src, "data:", 5)) return FALSE;
     for (p = src; *p; p++) if (p[0] == ':' && p[1] == '/' && p[2] == '/') break;
@@ -902,7 +905,12 @@ static BOOL resolve_path(CONST_STRPTR base, const char *src, char *out, LONG max
     rel[n] = 0;
     if (!n) return FALSE;
     copy_name(out, base ? base : (CONST_STRPTR)"", max);
-    return AddPart((STRPTR)out, (STRPTR)rel, max) ? TRUE : FALSE;
+    if (!AddPart((STRPTR)out, (STRPTR)rel, max)) return FALSE;
+    if ((lock = Lock((STRPTR)out, SHARED_LOCK))) {
+        if (NameFromLock(lock, (STRPTR)rel, sizeof(rel))) copy_name(out, (CONST_STRPTR)rel, max);
+        UnLock(lock);
+    }
+    return TRUE;
 }
 
 struct ImgLoad {

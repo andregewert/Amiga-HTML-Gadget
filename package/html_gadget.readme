@@ -94,6 +94,8 @@ History
    printing; off by default, handy for Markdown with big screenshots
  - html.gadget: scaled pictures with transparency (GIF) are drawn
    correctly on planar screens (AGA)
+ - html.gadget: pictures with relative paths are also exported to
+   PostScript/PDF when the current directory has changed since loading
  - HTMLDemo: export to RAM:HTMLDemo.ps / .pdf from the Project menu,
    bitmap printing through printer.device;
    it sets its own stack (32 KB), so it also runs without its icon
@@ -159,6 +161,9 @@ Versionsgeschichte
    großen Screenshots
  - html.gadget: skalierte Bilder mit Transparenz (GIF) werden auf
    planaren Bildschirmen (AGA) richtig gezeichnet
+ - html.gadget: Bilder mit relativem Pfad kommen auch dann ins
+   PostScript/PDF, wenn sich das aktuelle Verzeichnis seit dem Laden
+   geändert hat
  - HTMLDemo: Export nach RAM:HTMLDemo.ps / .pdf im Menü Projekt,
    Bitmap-Druck über printer.device; es
    setzt seinen Stack selbst (32 KB) und läuft so auch ohne sein Icon
