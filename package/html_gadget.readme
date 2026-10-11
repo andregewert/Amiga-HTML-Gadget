@@ -96,6 +96,9 @@ History
    correctly on planar screens (AGA)
  - html.gadget: pictures with relative paths are also exported to
    PostScript/PDF when the current directory has changed since loading
+ - more characters outside Latin-1 get a replacement instead of "?":
+   arrows (also the footnote back link of md4c, shown as ^), <=, >=, !=,
+   ~ and primes
  - HTMLDemo: export to RAM:HTMLDemo.ps / .pdf from the Project menu,
    bitmap printing through printer.device;
    it sets its own stack (32 KB), so it also runs without its icon
@@ -164,6 +167,9 @@ Versionsgeschichte
  - html.gadget: Bilder mit relativem Pfad kommen auch dann ins
    PostScript/PDF, wenn sich das aktuelle Verzeichnis seit dem Laden
    geändert hat
+ - mehr Zeichen außerhalb von Latin-1 erhalten einen Ersatz statt "?":
+   Pfeile (auch der Rücksprung aus Fußnoten von md4c, als ^), <=, >=,
+   !=, ~ und Striche für Minuten/Sekunden
  - HTMLDemo: Export nach RAM:HTMLDemo.ps / .pdf im Menü Projekt,
    Bitmap-Druck über printer.device; es
    setzt seinen Stack selbst (32 KB) und läuft so auch ohne sein Icon
