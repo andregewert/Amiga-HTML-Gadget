@@ -15,7 +15,7 @@ LIBFLAGS:= -nostartfiles -nostdlib
 DEMOFLAGS := $(CPU) -Os -Wall -fno-common -Iinclude -noixemul -Wl,-u,___stkinit
 
 LIBSRC  := src/html_lib.c src/html_class.c src/html_parse.c src/html_layout.c src/html_select.c src/html_clip.c \
-           src/html_check.c src/html_print.c src/html_afm.c src/html_export.c
+           src/html_check.c src/html_print.c src/html_afm.c src/html_export.c src/html_argb.c
 LIBOBJ  := $(LIBSRC:src/%.c=$(B)/%.o)
 
 DEMOFILES := $(addprefix bin/,example.html zweite.html hintergrund.html tabellen.html umfluss.html boing.gif farben.iff papier.gif kachel.gif streifen.gif)
@@ -35,7 +35,7 @@ FTSRC   := ttf/ftbase_html.c $(FT)/src/base/ftinit.c $(FT)/src/base/ftdebug.c \
            $(FT)/src/smooth/smooth.c ttf/ftsystem.c ttf/ftlibc.c
 FTOBJ   := $(addprefix $(B)/ft/,$(notdir $(FTSRC:.c=.o)))
 TTFOBJ  := $(B)/ttf/html_lib.o $(B)/ttf/htmlttf_class.o $(B)/ttf/htmlttf_render.o $(B)/ttf/htmlttf_print.o $(B)/html_parse.o $(B)/html_layout.o $(B)/html_select.o $(B)/html_clip.o $(B)/html_check.o \
-           $(B)/html_print.o $(B)/html_afm.o $(B)/html_export.o $(FTOBJ)
+           $(B)/html_print.o $(B)/html_afm.o $(B)/html_export.o $(B)/html_argb.o $(FTOBJ)
 
 all: charcheck bin/html.gadget bin/htmlttf.gadget bin/HTMLDemo $(DEMOFILES) $(FONTFILES)
 
@@ -119,8 +119,8 @@ HOSTFTSRC := ttf/ftbase_html.c $(FT)/src/base/ftinit.c $(FT)/src/base/ftsystem.c
              $(FT)/src/truetype/truetype.c $(FT)/src/sfnt/sfnt.c $(FT)/src/autofit/autofit.c $(FT)/src/smooth/smooth.c
 HOSTFTDEFS := -Ittf/include -I$(FT)/include -I$(FT)/src/base -DFT2_BUILD_LIBRARY \
               '-DFT_CONFIG_OPTIONS_H=<ftoption_html.h>' '-DFT_CONFIG_MODULES_H=<ftmodule_html.h>'
-test/ttfpreview: test/ttfpreview.c src/htmlttf_render.c src/htmlttf_render.h src/html_parse.c src/html_layout.c src/html_select.c src/html_check.c
-	cc -g -O1 -w $(HOSTFTDEFS) -o $@ test/ttfpreview.c src/htmlttf_render.c src/html_parse.c src/html_layout.c src/html_select.c src/html_check.c $(HOSTFTSRC)
+test/ttfpreview: test/ttfpreview.c src/htmlttf_render.c src/htmlttf_render.h src/html_parse.c src/html_layout.c src/html_select.c src/html_check.c src/html_argb.c
+	cc -g -O1 -w $(HOSTFTDEFS) -o $@ test/ttfpreview.c src/htmlttf_render.c src/html_parse.c src/html_layout.c src/html_select.c src/html_check.c src/html_argb.c $(HOSTFTSRC)
 
 # host test of the print engine (PostScript/PDF)
 PRINTSRC := src/html_print.c src/html_afm.c src/html_parse.c src/html_layout.c src/html_select.c
@@ -141,7 +141,7 @@ print-preview: test/hostprint
 
 # host test of the bitmap printing (htmlttf_print.c): pages as build/print/ttf-<n>.ppm
 TTFPRINTSRC := src/htmlttf_print.c src/htmlttf_render.c src/html_print.c src/html_afm.c src/html_parse.c \
-               src/html_layout.c src/html_select.c src/html_check.c
+               src/html_layout.c src/html_select.c src/html_check.c src/html_argb.c
 test/ttfprint: test/ttfprint.c $(TTFPRINTSRC) src/htmlttf_print.h src/htmlttf_render.h src/html_print.h
 	cc -g -O1 -w -fsanitize=address,undefined $(HOSTFTDEFS) -o $@ test/ttfprint.c $(TTFPRINTSRC) $(HOSTFTSRC)
 

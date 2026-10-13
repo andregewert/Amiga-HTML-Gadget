@@ -150,27 +150,21 @@ LONG html_export(struct HDoc *doc, Object *gadget, struct TagItem *tags, const s
     return n;
 }
 
-/* Loads the picture 'path' with its original pixels as ARGB: alpha from
- * the alpha channel (PNG) or the transparent colour (GIF), else opaque. */
-int html_export_load_image(const char *path, struct HPrintImage *pi)
+/* The original pixels of a picture object made with PDTA_Remap FALSE, as
+ * ARGB in a new AllocVec() buffer: alpha from the alpha channel (PNG) or
+ * the transparent colour (GIF), else opaque. NULL on failure.          */
+ULONG *html_read_argb(Object *dto, LONG *wp, LONG *hp)
 {
     struct BitMapHeader *bmhd = NULL;
     struct pdtBlitPixelArray pa;
-    Object *dto;
     ULONG alpha = 0, *pix;
     LONG w, h, i;
     UBYTE *lut;
 
-    if (!html_open_datatypes()) return 0;
-    if (!(dto = NewDTObject((APTR)path, DTA_GroupID, GID_PICTURE,
-                            PDTA_DestMode, PMODE_V43, PDTA_Remap, FALSE, TAG_DONE)))
-        return 0;
     GetDTAttrs(dto, PDTA_BitMapHeader, (ULONG)&bmhd, TAG_DONE);
     if (!bmhd || !bmhd->bmh_Width || !bmhd->bmh_Height ||
-        !(pix = AllocVec(bmhd->bmh_Width * bmhd->bmh_Height * 4, MEMF_ANY))) {
-        DisposeDTObject(dto);
-        return 0;
-    }
+        !(pix = AllocVec(bmhd->bmh_Width * bmhd->bmh_Height * 4, MEMF_ANY)))
+        return NULL;
     w = bmhd->bmh_Width;
     h = bmhd->bmh_Height;
     pa.MethodID = PDTM_READPIXELARRAY;
@@ -183,8 +177,7 @@ int html_export_load_image(const char *path, struct HPrintImage *pi)
     pa.pbpa_Height = h;
     if (!dm(dto, (Msg)&pa)) {
         FreeVec(pix);
-        DisposeDTObject(dto);
-        return 0;
+        return NULL;
     }
     if (GetDTAttrs(dto, PDTA_AlphaChannel, (ULONG)&alpha, TAG_DONE) != 1) alpha = 0;
     if (!alpha)
@@ -198,7 +191,26 @@ int html_export_load_image(const char *path, struct HPrintImage *pi)
                 if (lut[i] == bmhd->bmh_Transparent) pix[i] = 0;
         FreeVec(lut);
     }
+    *wp = w;
+    *hp = h;
+    return pix;
+}
+
+/* Loads the picture 'path' with its original pixels as ARGB (see
+ * html_read_argb()).                                                   */
+int html_export_load_image(const char *path, struct HPrintImage *pi)
+{
+    Object *dto;
+    ULONG *pix;
+    LONG w, h;
+
+    if (!html_open_datatypes()) return 0;
+    if (!(dto = NewDTObject((APTR)path, DTA_GroupID, GID_PICTURE,
+                            PDTA_DestMode, PMODE_V43, PDTA_Remap, FALSE, TAG_DONE)))
+        return 0;
+    pix = html_read_argb(dto, &w, &h);
     DisposeDTObject(dto);
+    if (!pix) return 0;
     pi->w = w;
     pi->h = h;
     pi->argb = (const unsigned long *)pix;

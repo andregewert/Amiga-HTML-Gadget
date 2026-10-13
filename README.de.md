@@ -226,7 +226,11 @@ Outline-Fonts (`.otag`) werden in der exakt berechneten Größe verwendet.
 ### Bilder und Screens
 
 Bilder werden beim Setzen von `HTML_Text`/`HTML_File` im Kontext der Anwendung geladen
-und für den Screen des Gadgets geremappt. Wird das Dokument gesetzt, bevor das Fenster
+und für den Screen des Gadgets geremappt. Auf Palettenscreens (bis 8 Bit) behält html.gadget
+die Originalpixel (ARGB), skaliert in vollen Farben und gibt jedem Pixel den nächstliegenden
+Stift, ohne Dithering, wie htmlttf.gadget. So werden verkleinerte Bilder (`HTML_FitImages`,
+`width`/`height`) nicht aus einem geditherten Bild skaliert. Das kostet 4 Bytes pro Bildpixel
+im Speicher, solange das Dokument geladen ist. Hintergrundkacheln remappt weiter der Datatype. Wird das Dokument gesetzt, bevor das Fenster
 offen ist, wird der Default-Public-Screen angenommen. Landet das Gadget dann auf einem
 anderen Screen, erscheinen die Bilder als leere Rahmen, bis das Dokument erneut gesetzt wird.
 

@@ -80,6 +80,10 @@ struct HImage {
     BOOL           ownmaskvec;       /* ownmask is from AllocVec() (scale_masked_planar) */
     BOOL           tile;             /* background picture (tiled) */
     struct HImage *fit;              /* copy scaled to the last box size (own bitmaps only) */
+    /* palette screens: the original pixels as ARGB (pw x ph); bm is made
+     * from them (argb_image()), also the scaled copies               */
+    ULONG         *pix;
+    LONG           pw, ph;
 };
 
 struct PenEntry {
@@ -162,6 +166,14 @@ struct HTMLData {
     /* items per band of BAND pixels: first and last index (draw_content) */
     struct HLayout   *idxlay;
     LONG             *bandfirst, *bandlast, nbands;
+
+    /* pens of the pictures on palette screens (argb_image()): 15 bit RGB
+     * -> pen, 0xFFFF = not yet; kept until the screen changes           */
+    struct SignalSemaphore penlock;
+    struct ColorMap  *icm;
+    UWORD            *ipenmap;
+    LONG              ipens[256];
+    LONG              nipens, imaxpen;
 
     struct Screen    *scr;               /* screen of the last GM_RENDER (for printing) */
     struct BMPrint   *print;             /* HTMLM_PrintBegin .. HTMLM_PrintEnd */
@@ -426,33 +438,18 @@ static void release_pens(struct HTMLData *d)
     d->cm = NULL;
 }
 
-/* 0xRRGGBB of pen n */
-static ULONG cm_rgb(struct ColorMap *cm, LONG n)
+/* the pens a screen can show: 1 << depth (at most 256). The ColorMap
+ * may have more entries (32 or 256 for 16 colours on AGA), and pen
+ * 16 + n is drawn as pen n there                                     */
+static LONG screen_pens(struct Screen *scr)
 {
-    ULONG rgb[3];
-    GetRGB32(cm, n, 1, rgb);
-    return ((rgb[0] >> 8) & 0xFF0000) | ((rgb[1] >> 16) & 0xFF00) | (rgb[2] >> 24);
+    ULONG depth = GetBitMapAttr(scr->RastPort.BitMap, BMA_DEPTH);
+    return depth >= 8 ? 256 : 1L << depth;
 }
 
-#define NEAR_WHITE(c) (((c) & 0xF8F8F8UL) == 0xF8F8F8UL)
-
-/* the pen of a light colour that is not white, without obtaining it: the
- * nearest light colour of the palette that is not white, -1 if none   */
-static LONG light_pen(struct ColorMap *cm, ULONG col)
-{
-    LONG n, best = -1, bestd = 0x7FFFFFFF, cnt = cm->Count > 256 ? 256 : cm->Count;
-    for (n = 0; n < cnt; n++) {
-        ULONG c = cm_rgb(cm, n);
-        LONG dr = (LONG)(c >> 16 & 0xFF) - (LONG)(col >> 16 & 0xFF), dg = (LONG)(c >> 8 & 0xFF) - (LONG)(col >> 8 & 0xFF),
-             db = (LONG)(c & 0xFF) - (LONG)(col & 0xFF), dist = dr * dr + dg * dg + db * db;
-        if (NEAR_WHITE(c) || (c >> 16 & 0xFF) < 0xC0 || (c >> 8 & 0xFF) < 0xC0 || (c & 0xFF) < 0xC0) continue;
-        if (dist < bestd) { bestd = dist; best = n; }
-    }
-    return best;
-}
-
-/* the pen of an RGB colour, kept until the screen changes; -1 if none */
-static LONG rgb_pen(struct HTMLData *d, struct ColorMap *cm, ULONG col)
+/* the pen of an RGB colour, kept until the screen changes; npens: the
+ * pens the screen can show (screen_pens())                           */
+static LONG rgb_pen(struct HTMLData *d, struct ColorMap *cm, LONG npens, ULONG col)
 {
     ULONG r, g, b;
     LONG pen;
@@ -467,23 +464,30 @@ static LONG rgb_pen(struct HTMLData *d, struct ColorMap *cm, ULONG col)
         if (d->pens[i].rgb == col) return d->pens[i].pen;
 
     r = (col >> 16) & 0xFF; g = (col >> 8) & 0xFF; b = col & 0xFF;
-    /* Very light colours (code and table backgrounds) are near enough to
-     * white for PRECISION_IMAGE to take the white pen: they get a pen of
-     * their own if one is free, else the nearest light colour that is
-     * not white (all pens taken, e.g. by pictures on AGA)              */
-    light = r >= 0xE0 && g >= 0xE0 && b >= 0xE0 && !NEAR_WHITE(col);
+    /* A pen of its own if one is free (PRECISION_EXACT): with
+     * PRECISION_IMAGE the colour asked for first decides what the next
+     * ones get - white took the pen of the code background, or the other
+     * way round. Without free pens the nearest one; very light colours
+     * (code and table backgrounds) then the nearest light colour that is
+     * not white, so they stay visible on a white page                   */
+    light = r >= 0xE0 && g >= 0xE0 && b >= 0xE0 && !HTML_NEAR_WHITE(col);
     pen = ObtainBestPen(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL,
-                        OBP_Precision, light ? PRECISION_EXACT : PRECISION_IMAGE, TAG_DONE);
-    if (pen < 0 && light)
+                        OBP_Precision, PRECISION_EXACT, TAG_DONE);
+    if (pen < 0)
         pen = ObtainBestPen(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL,
                             OBP_Precision, PRECISION_IMAGE, TAG_DONE);
-    if (pen >= 0 && light && NEAR_WHITE(cm_rgb(cm, pen))) {
-        LONG alt = light_pen(cm, col);
+    if (light && (pen < 0 || HTML_NEAR_WHITE(html_cm_rgb(cm, pen)))) {
+        LONG alt = html_light_pen(cm, npens, col);
         if (alt >= 0) {
-            ReleasePen(cm, pen);
+            if (pen >= 0) ReleasePen(cm, pen);
             pen = alt;
             own = FALSE;
         }
+    }
+    /* no pen to be had: the nearest colour the screen shows */
+    if (pen < 0) {
+        pen = FindColor(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL, npens - 1);
+        own = FALSE;
     }
     if (d->npens < MAXPENS) {
         d->pens[d->npens].rgb = col;
@@ -492,7 +496,7 @@ static LONG rgb_pen(struct HTMLData *d, struct ColorMap *cm, ULONG col)
         d->npens++;
     } else if (pen >= 0 && own) {
         ReleasePen(cm, pen);          /* cache full: use and forget */
-        pen = FindColor(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL, -1);
+        pen = FindColor(cm, r * 0x01010101UL, g * 0x01010101UL, b * 0x01010101UL, npens - 1);
     }
     return pen;
 }
@@ -504,7 +508,7 @@ static LONG get_pen(struct HTMLData *d, struct GadgetInfo *gi, ULONG col, int de
 
     if (col & COL_PEN) return dpens[col & 0xFF];
     if (!COL_IS_RGB(col)) return dpens[deflt];
-    pen = rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, col);
+    pen = rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, screen_pens(gi->gi_Screen), col);
     return pen >= 0 ? pen : dpens[deflt];
 }
 
@@ -769,7 +773,7 @@ static void check_span(void *ctx, long x0, long x1, long y, unsigned long rgb, u
 }
 
 /* draws the document into rp; (ox,oy) is where the visible area starts */
-static struct HImage *fit_image(struct HImage *im, LONG w, LONG h);
+static struct HImage *fit_image(struct HTMLData *d, struct HImage *im, LONG w, LONG h);
 
 static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastPort *rp, LONG ox, LONG oy)
 {
@@ -877,7 +881,7 @@ static void draw_content(struct HTMLData *d, struct GadgetInfo *gi, struct RastP
         case IT_IMAGE: {
             struct HImage *im = it->img;
             /* a box of another size (HTML_FitImages, width in %) */
-            if (im && im->bm && !im->tile && (it->w != im->w || it->h != im->h)) im = fit_image(im, it->w, it->h);
+            if (im && im->bm && !im->tile && (it->w != im->w || it->h != im->h)) im = fit_image(d, im, it->w, it->h);
             if (im && im->bm && im->scr == gi->gi_Screen) {
                 LONG sx = 0, sy = 0, bx = x, by = y;
                 LONG w = it->w < im->w ? it->w : im->w, h = it->h < im->h ? it->h : im->h;
@@ -1067,6 +1071,7 @@ static void free_images(struct HImage *im)
             else FreeRaster(im->ownmask, im->maskw, im->maskh);
         }
         if (im->dto) DisposeDTObject(im->dto);
+        if (im->pix) FreeVec(im->pix);
         FreeVec(im);
         im = next;
     }
@@ -1105,6 +1110,7 @@ static BOOL resolve_path(CONST_STRPTR base, const char *src, char *out, LONG max
 }
 
 struct ImgLoad {
+    struct HTMLData *d;
     struct HImage *list;
     struct HImage *bgimg;
     LONG           total, loaded;
@@ -1145,6 +1151,130 @@ static void image_error(struct ImgLoad *il, const char *path, const char *step, 
         for (p = reason; *p && n < (LONG)sizeof(il->err) - 1; p++) il->err[n++] = *p;
     }
     il->err[n] = 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* pictures on palette screens                                         */
+
+/* A remapped (dithered) picture scaled down afterwards turns the dither
+ * pattern into coloured noise, the fewer colours the worse. On palette
+ * screens the gadget keeps the original pixels instead: it scales them
+ * in full colour (html_scale_argb()) and gives each pixel the nearest
+ * pen, as htmlttf.gadget does. Everything here may run in input.device
+ * context (fit_image() while drawing): no DOS.                         */
+
+static BOOL palette_screen(struct Screen *scr)
+{
+    return GetBitMapAttr(scr->RastPort.BitMap, BMA_DEPTH) <= 8;
+}
+
+static void release_image_pens(struct HTMLData *d)
+{
+    LONG i;
+    if (d->icm) for (i = 0; i < d->nipens; i++) ReleasePen(d->icm, d->ipens[i]);
+    d->nipens = 0;
+    d->icm = NULL;
+    if (d->ipenmap) { FreeVec(d->ipenmap); d->ipenmap = NULL; }
+}
+
+/* the pen for an ARGB colour (penlock held) */
+static UBYTE image_pen(struct HTMLData *d, ULONG argb)
+{
+    ULONG key = ((argb >> 9) & 0x7C00) | ((argb >> 6) & 0x03E0) | ((argb >> 3) & 0x001F);
+    UWORD p = d->ipenmap[key];
+
+    if (p == 0xFFFF) {
+        ULONG r = ((argb >> 16) & 0xF8) * 0x01010101UL, g = ((argb >> 8) & 0xF8) * 0x01010101UL,
+              b = (argb & 0xF8) * 0x01010101UL;
+        LONG pen = -1;
+        if (d->nipens < 256) {
+            pen = ObtainBestPen(d->icm, r, g, b, OBP_Precision, PRECISION_IMAGE, TAG_DONE);
+            if (pen >= 0) d->ipens[d->nipens++] = pen;
+        }
+        if (pen < 0) pen = FindColor(d->icm, r, g, b, d->imaxpen);
+        p = d->ipenmap[key] = (UWORD)(pen < 0 ? 0 : pen);
+    }
+    return (UBYTE)p;
+}
+
+/* im->bm (and im->mask for transparent pixels) w x h from the ARGB
+ * pixels pix (pw x ph) for screen scr; im->ownbm/ownmask are set.
+ * FALSE without memory.                                               */
+static BOOL argb_image(struct HTMLData *d, struct Screen *scr, struct HImage *im,
+                       const ULONG *pix, LONG pw, LONG ph, LONG w, LONG h)
+{
+    struct ColorMap *cm = scr->ViewPort.ColorMap;
+    struct BitMap *sbm = scr->RastPort.BitMap, *bm = NULL;
+    ULONG depth = GetBitMapAttr(sbm, BMA_DEPTH);
+    BOOL planar = (GetBitMapAttr(sbm, BMA_FLAGS) & BMF_STANDARD) != 0, ok = FALSE;
+    ULONG *scaled = NULL;
+    const ULONG *src = pix;
+    UBYTE *chunky = NULL, *mask = NULL;
+    LONG i, x, y, bpr = 0;
+    BOOL masked = FALSE;
+    struct RastPort rp;
+
+    if (w < 1 || h < 1 || w > 4000 || h > 4000) return FALSE;
+    if (w != pw || h != ph) {
+        if (!(scaled = AllocVec(w * h * 4, MEMF_ANY))) return FALSE;
+        html_scale_argb((const unsigned int *)pix, pw, ph, (unsigned int *)scaled, w, h);
+        src = scaled;
+    }
+    for (i = 0; i < w * h; i++)
+        if ((src[i] >> 24) < 128) { masked = TRUE; break; }
+    /* planar: a plain (non-interleaved) bitmap, the mask has its rows;
+     * RTG with a palette: a friend bitmap, the mask as AllocRaster()   */
+    if (!(bm = AllocBitMap(w, h, depth, BMF_CLEAR, planar ? NULL : sbm)) ||
+        (planar && (GetBitMapAttr(bm, BMA_FLAGS) & BMF_INTERLEAVED)) ||
+        !(chunky = AllocVec(w * h, MEMF_ANY)))
+        goto out;
+    if (masked) {
+        bpr = planar ? bm->BytesPerRow : ((w + 15) >> 4) << 1;
+        if (!(mask = AllocVec(bpr * h, MEMF_CHIP | MEMF_CLEAR))) goto out;
+    }
+
+    ObtainSemaphore(&d->penlock);
+    if (cm != d->icm) {
+        release_image_pens(d);
+        d->icm = cm;
+        d->imaxpen = depth >= 8 ? 255 : (1L << depth) - 1;
+    }
+    if (!d->ipenmap) {
+        if ((d->ipenmap = AllocVec(32768 * sizeof(UWORD), MEMF_ANY)))
+            h_memset(d->ipenmap, 0xFF, 32768 * sizeof(UWORD));
+    }
+    if (d->ipenmap)
+        for (y = 0, i = 0; y < h; y++)
+            for (x = 0; x < w; x++, i++) {
+                ULONG v = src[i];
+                if ((v >> 24) < 128) chunky[i] = 0;
+                else {
+                    chunky[i] = image_pen(d, v);
+                    if (mask) mask[y * bpr + (x >> 3)] |= 0x80 >> (x & 7);
+                }
+            }
+    ReleaseSemaphore(&d->penlock);
+    if (!d->ipenmap) goto out;
+
+    InitRastPort(&rp);
+    rp.BitMap = bm;
+    WriteChunkyPixels(&rp, 0, 0, w - 1, h - 1, chunky, w);
+    WaitBlit();
+    im->ownbm = im->bm = bm;
+    im->ownmask = im->mask = mask;
+    im->ownmaskvec = TRUE;
+    im->w = w;
+    im->h = h;
+    im->scr = scr;
+    bm = NULL;
+    mask = NULL;
+    ok = TRUE;
+out:
+    if (mask) FreeVec(mask);
+    if (bm) FreeBitMap(bm);
+    if (chunky) FreeVec(chunky);
+    if (scaled) FreeVec(scaled);
+    return ok;
 }
 
 /* Planar pictures with a mask: the row width of the datatype's mask is not
@@ -1284,7 +1414,7 @@ static void scale_image(struct HImage *im, LONG nw, LONG nh)
 /* the picture scaled to w x h for a box of another size, made from the
  * picture as loaded and kept until the size changes; the picture itself
  * if that fails                                                          */
-static struct HImage *fit_image(struct HImage *im, LONG w, LONG h)
+static struct HImage *fit_image(struct HTMLData *d, struct HImage *im, LONG w, LONG h)
 {
     struct HImage *f = im->fit;
 
@@ -1297,10 +1427,19 @@ static struct HImage *fit_image(struct HImage *im, LONG w, LONG h)
     *f = *im;
     f->next = NULL;
     f->dto = NULL;                  /* belongs to im */
+    f->pix = NULL;                  /* belongs to im */
     f->ownbm = NULL;
     f->ownmask = NULL;
     f->ownmaskvec = FALSE;
     f->fit = NULL;
+    if (im->pix) {                  /* palette screen: from the original pixels */
+        if (!argb_image(d, im->scr, f, im->pix, im->pw, im->ph, w, h)) {
+            FreeVec(f);
+            return im;
+        }
+        im->fit = f;
+        return f;
+    }
     scale_image(f, w, h);
     if (!f->ownbm) {                /* not scaled */
         free_images(f);
@@ -1360,6 +1499,35 @@ static struct HImage *load_image(struct ImgLoad *il, const char *path, LONG reqw
     im->scr = scr;
     im->next = *list;
     *list = im;
+
+    /* palette screens: the original pixels, scaled and given pens by us
+     * (see argb_image()); background tiles as before                  */
+    if (!tile && il->d && palette_screen(scr)) {
+        Object *dto = NewDTObject((APTR)path, DTA_GroupID, GID_PICTURE,
+                                  PDTA_DestMode, PMODE_V43, PDTA_Remap, FALSE, TAG_DONE);
+        LONG pw = 0, ph = 0, tw, th;
+        if (!dto) {
+            image_error(il, path, "NewDTObject", IoErr());
+            return NULL;
+        }
+        im->pix = html_read_argb(dto, &pw, &ph);
+        DisposeDTObject(dto);
+        if (!im->pix) {
+            image_error(il, path, "PDTM_READPIXELARRAY", IoErr());
+            return NULL;
+        }
+        im->pw = pw;
+        im->ph = ph;
+        /* width/height attributes; only one given: keep the aspect ratio */
+        tw = reqw > 0 ? reqw : reqh > 0 ? pw * reqh / ph : pw;
+        th = reqh > 0 ? reqh : reqw > 0 ? ph * reqw / pw : ph;
+        if (tw < 1 || th < 1 || tw > 4000 || th > 4000) { tw = pw; th = ph; }
+        if (!argb_image(il->d, scr, im, im->pix, pw, ph, tw, th)) {
+            image_error(il, path, "argb_image", ERROR_NO_FREE_STORE);
+            return NULL;
+        }
+        return im;
+    }
 
     im->dto = NewDTObject((APTR)path,
         DTA_GroupID,           GID_PICTURE,
@@ -1520,12 +1688,20 @@ static BOOL set_document(struct HTMLData *d, CONST_STRPTR src, LONG len, CONST_S
     /* pictures are remapped for the gadget's screen; before the window is
      * open that is the default public screen                             */
     h_memset(&il, 0, sizeof(il));
-    /* the light colours first: the pictures may take the free pens */
-    if (gi && gi->gi_Screen && (d->env.code_style || d->env.table_grid)) {
+    il.d = d;
+    /* the page background and the light colours first: the pictures
+     * may take the free pens                                           */
+    if (gi && gi->gi_Screen) {
+        struct ColorMap *cm = gi->gi_Screen->ViewPort.ColorMap;
+        LONG n = screen_pens(gi->gi_Screen);
+        ULONG bg = pa.doc && pa.doc->bgcolor != COL_NONE ? pa.doc->bgcolor : d->syscolors ? COL_NONE : 0xFFFFFFUL;
         ObtainSemaphore(&d->lock);
-        rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, HCOL_PREBG);
-        rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, HCOL_CODEBG);
-        rgb_pen(d, gi->gi_Screen->ViewPort.ColorMap, HCOL_GRID);
+        if (COL_IS_RGB(bg)) rgb_pen(d, cm, n, bg);
+        if (d->env.code_style || d->env.table_grid) {
+            rgb_pen(d, cm, n, HCOL_PREBG);
+            rgb_pen(d, cm, n, HCOL_CODEBG);
+            rgb_pen(d, cm, n, HCOL_GRID);
+        }
         ReleaseSemaphore(&d->lock);
     }
     if (d->loadimages) {
@@ -1801,6 +1977,7 @@ static Object *om_new(Class *cl, Object *o, struct opSet *msg)
     d = INST_DATA(cl, obj);
     h_memset(d, 0, sizeof(*d));
     InitSemaphore(&d->lock);
+    InitSemaphore(&d->penlock);
     InitRastPort(&d->mrp);
     d->laywidth = -1;
     d->activelink = -1;
@@ -1881,6 +2058,7 @@ static void om_dispose(Class *cl, Object *o)
     print_free(d);
     free_buffer(d);
     free_index(d);
+    release_image_pens(d);
     release_pens(d);
     if (d->lay) html_free_layout(d->lay);
     html_free_doc(d->doc);

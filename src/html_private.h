@@ -35,6 +35,12 @@ void  html_open_diskfont(void);
 BOOL  html_open_datatypes(void);
 BOOL  html_write_clip(const char *text, LONG len);
 
+/* pens on palette screens (html_lib.c) */
+#define HTML_NEAR_WHITE(c) (((c) & 0xF8F8F8UL) == 0xF8F8F8UL)
+struct ColorMap;
+ULONG html_cm_rgb(struct ColorMap *cm, LONG n);
+LONG  html_light_pen(struct ColorMap *cm, LONG npens, ULONG col);
+
 extern struct Library       *CyberGfxBase;
 BOOL  html_open_cybergfx(void);
 ULONG html_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg msg __asm("a1"));

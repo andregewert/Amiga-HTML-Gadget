@@ -99,6 +99,13 @@ History
  - faster scrolling: for a few lines the gadgets move the picture and
    draw only the new strip, and they only go through the items that can
    be visible; htmlttf.gadget now draws through a buffer as well
+ - html.gadget on palette screens: pictures are scaled in full colour
+   and then get the nearest pens, as in htmlttf.gadget (they were scaled
+   from the dithered picture, which gave coloured noise)
+ - palette screens: the page background and the light colours for code
+   and tables get pens of their own first, in both gadgets (white and the
+   code background could end up with the same pen), and only pens the
+   screen can show
  - more characters outside Latin-1 get a replacement instead of "?":
    arrows (also the footnote back link of md4c, shown as ^), <=, >=, !=,
    ~ and primes
@@ -174,6 +181,13 @@ Versionsgeschichte
    Bild und zeichnen nur den neuen Streifen, und sie gehen nur die
    Elemente durch, die sichtbar sein können; htmlttf.gadget zeichnet
    jetzt ebenfalls über einen Puffer
+ - html.gadget auf Palettenscreens: Bilder werden in vollen Farben skaliert
+   und erhalten dann die nächstliegenden Stifte, wie bei htmlttf.gadget
+   (bisher wurde das geditherte Bild skaliert, das gab buntes Rauschen)
+ - Palettenscreens: Seitenhintergrund und die hellen Farben für Code und
+   Tabellen erhalten in beiden Gadgets zuerst eigene Stifte (Weiß und der
+   Code-Hintergrund konnten denselben Stift bekommen), und nur Stifte, die
+   der Screen zeigen kann
  - mehr Zeichen außerhalb von Latin-1 erhalten einen Ersatz statt "?":
    Pfeile (auch der Rücksprung aus Fußnoten von md4c, als ^), <=, >=,
    !=, ~ und Striche für Minuten/Sekunden

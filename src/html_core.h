@@ -169,6 +169,9 @@ struct HLayout {
     unsigned long   bgcolor;               /* resolved page background */
 };
 
+/* ARGB pictures (html_argb.c): resamples sw x sh into dst, dw x dh */
+void html_scale_argb(const unsigned int *src, long sw, long sh, unsigned int *dst, long dw, long dh);
+
 /* lays out 'doc' for a viewport of 'width' pixels. Returns NULL on
  * out-of-memory. Free with html_free_layout().                          */
 struct HLayout *html_layout(struct HDoc *doc, struct HEnv *env, long width);

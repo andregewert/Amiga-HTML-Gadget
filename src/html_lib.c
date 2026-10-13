@@ -18,6 +18,7 @@
 
 #include <proto/exec.h>
 #include <proto/intuition.h>
+#include <proto/graphics.h>
 
 #include "html_private.h"
 
@@ -227,4 +228,32 @@ void html_open_diskfont(void)
     ObtainSemaphore(&DiskfontLock);
     if (!DiskfontBase) DiskfontBase = OpenLibrary("diskfont.library", 39);
     ReleaseSemaphore(&DiskfontLock);
+}
+
+/* ------------------------------------------------------------------ */
+/* pens on palette screens (both gadgets)                              */
+
+/* 0xRRGGBB of pen n */
+ULONG html_cm_rgb(struct ColorMap *cm, LONG n)
+{
+    ULONG rgb[3];
+    GetRGB32(cm, n, 1, rgb);
+    return ((rgb[0] >> 8) & 0xFF0000) | ((rgb[1] >> 16) & 0xFF00) | (rgb[2] >> 24);
+}
+
+/* The pen of a light colour (code and table backgrounds) when none can
+ * be obtained for it: the nearest light colour among the first npens
+ * that is not white, so it stays visible on a white page; not obtained.
+ * -1 if the palette has none.                                          */
+LONG html_light_pen(struct ColorMap *cm, LONG npens, ULONG col)
+{
+    LONG n, best = -1, bestd = 0x7FFFFFFF, cnt = cm->Count < npens ? cm->Count : npens;
+    for (n = 0; n < cnt; n++) {
+        ULONG c = html_cm_rgb(cm, n);
+        LONG dr = (LONG)(c >> 16 & 0xFF) - (LONG)(col >> 16 & 0xFF), dg = (LONG)(c >> 8 & 0xFF) - (LONG)(col >> 8 & 0xFF),
+             db = (LONG)(c & 0xFF) - (LONG)(col & 0xFF), dist = dr * dr + dg * dg + db * db;
+        if (HTML_NEAR_WHITE(c) || (c >> 16 & 0xFF) < 0xC0 || (c >> 8 & 0xFF) < 0xC0 || (c & 0xFF) < 0xC0) continue;
+        if (dist < bestd) { bestd = dist; best = n; }
+    }
+    return best;
 }

@@ -25,4 +25,8 @@ void html_export_free_image(struct HPrintImage *pi);
 int  html_export_load_jpeg(const char *path, struct HPrintImage *pi);
 void html_export_free_jpeg(struct HPrintImage *pi);
 
+/* the original pixels of a picture object (PDTA_Remap FALSE) as ARGB,
+ * AllocVec(); NULL on failure                                          */
+ULONG *html_read_argb(Object *dto, LONG *w, LONG *h);
+
 #endif

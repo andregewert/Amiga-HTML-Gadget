@@ -146,6 +146,7 @@ struct HTMLData {
     struct ColorMap  *cm;
     LONG              pens[MAXPENS];
     int               npens;
+    LONG              maxpen;            /* last pen the screen can show */
 
     /* off-screen buffer of the visible area. Scrolling by a few lines
      * moves it and renders only the new strip. bufok: it shows lay at
@@ -482,6 +483,27 @@ static void release_pens(struct HTMLData *d)
     if (d->penmap) { FreeVec(d->penmap); d->penmap = NULL; }
 }
 
+/* palette screens: the colour gets a pen of its own if one is free and
+ * is entered for its 15 bit key, before map_pen() maps pixels near it to
+ * whatever pen it gets first (white took the pen of the code background).
+ * Used for the page background and the light colours (light enough: see
+ * html_light_pen()).                                                     */
+static void exact_pen(struct HTMLData *d, ULONG rgb)
+{
+    ULONG key = ((rgb >> 9) & 0x7C00) | ((rgb >> 6) & 0x03E0) | ((rgb >> 3) & 0x001F);
+    LONG pen;
+
+    if (d->penmap[key] != 0xFFFF || d->npens >= MAXPENS) return;
+    pen = ObtainBestPen(d->cm, ((rgb >> 16) & 0xFF) * 0x01010101UL, ((rgb >> 8) & 0xFF) * 0x01010101UL,
+                        (rgb & 0xFF) * 0x01010101UL, OBP_Precision, PRECISION_EXACT, TAG_DONE);
+    if (pen >= 0) d->pens[d->npens++] = pen;
+    /* none free: a light colour takes the nearest light one that is not
+     * white (as html.gadget), else map_pen() decides later              */
+    else if (HTML_NEAR_WHITE(rgb) || (rgb & 0xE0E0E0UL) != 0xE0E0E0UL ||
+             (pen = html_light_pen(d->cm, d->maxpen + 1, rgb)) < 0) return;
+    d->penmap[key] = (UWORD)pen;
+}
+
 /* palette screens: ARGB -> pen */
 static UBYTE map_pen(struct HTMLData *d, ULONG argb)
 {
@@ -496,7 +518,7 @@ static UBYTE map_pen(struct HTMLData *d, ULONG argb)
             pen = ObtainBestPen(d->cm, r, g, b, OBP_Precision, PRECISION_IMAGE, TAG_DONE);
             if (pen >= 0) d->pens[d->npens++] = pen;
         }
-        if (pen < 0) pen = FindColor(d->cm, r, g, b, -1);
+        if (pen < 0) pen = FindColor(d->cm, r, g, b, d->maxpen);
         p = d->penmap[key] = (UWORD)(pen < 0 ? 0 : pen);
     }
     return (UBYTE)p;
@@ -697,13 +719,23 @@ static ULONG render_strips(APTR arg)
     }
     if (!truecolor) {
         struct ColorMap *cm = ra->gi->gi_Screen->ViewPort.ColorMap;
+        ULONG depth = GetBitMapAttr(bm, BMA_DEPTH);
         if (cm != d->cm) release_pens(d);
         d->cm = cm;
+        /* the ColorMap may have more entries than the screen shows (AGA) */
+        d->maxpen = depth >= 8 ? 255 : (1L << depth) - 1;
         if (!d->penmap) {
             if (!(d->penmap = AllocVec(32768 * sizeof(UWORD), MEMF_ANY))) return 0;
             h_memset(d->penmap, 0xFF, 32768 * sizeof(UWORD));
         }
         if (!d->chunky && !(d->chunky = AllocVec(d->visw * STRIP_H, MEMF_ANY))) return 0;
+        /* page background and the light colours first */
+        if (d->lay && COL_IS_RGB(d->lay->bgcolor)) exact_pen(d, d->lay->bgcolor);
+        if (d->env.code_style || d->env.table_grid) {
+            exact_pen(d, HCOL_PREBG);
+            exact_pen(d, HCOL_CODEBG);
+            exact_pen(d, HCOL_GRID);
+        }
     }
 
     s.buf = d->strip;
