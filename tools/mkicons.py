@@ -7,7 +7,9 @@
 #   Classic    4 colour planar image (Workbench 2.x/3.x palette)
 #   GlowIcons  OS 3.5+ colour icon: IFF FORM ICON appended to the DiskObject,
 #              selected image with the typical orange glow
-#   NewIcons   colour image encoded in IM1=/IM2= tool types
+#   NewIcons   colour image encoded in IM1=/IM2= tool types, drawn in the
+#              style of the NewIcons package: isometric objects, staircase
+#              edges, its 16 colour palette, objects on a platform
 # Glow and NewIcons icons keep the classic picture as planar fallback image.
 #
 # Run directly (or "make icons") to write sample icons of all styles to
@@ -205,15 +207,13 @@ def inside(pts, x, y):
 # ------------------------------------------------------------- styles ---
 
 class Style:
-    """ GlowIcons: soft gradients, outlines in a dark shade of the colour.
-        NewIcons:  black outlines, two tones per colour (few colours). """
-    def __init__(self, glow):
-        self.glow = glow
+    """ GlowIcons: soft gradients, outlines in a dark shade of the colour """
+    glow = True
 
     def ramp(self, light, dark):
         """ shading function for a box: light at the top, dark at the bottom
-            (slightly darker to the right), 5 (Glow) or 2 (NewIcons) tones """
-        steps = 5 if self.glow else 2
+            (slightly darker to the right), 5 tones                         """
+        steps = 5
         tones = [mix(light, dark, i / (steps - 1)) for i in range(steps)]
 
         def shade(x0, y0, x1, y1):
@@ -225,7 +225,7 @@ class Style:
         return shade
 
     def line(self, c):
-        return dim(c, 0.45) if self.glow else BLACK
+        return dim(c, 0.45)
 
 
 BLACK = (0, 0, 0)
@@ -277,7 +277,7 @@ def m_demo(s, c):
     c.rect(3, 5, 38, 8, s.ramp(*BLUE)(3, 5, 38, 8))
     c.rect(4, 6, 6, 7, WHITE)
     c.rect(3, 9, 38, 33, s.ramp(WHITE, PAPER[1])(3, 9, 38, 33))
-    c.rect(6, 12, 19, 13, s.line(GREY[1]) if s.glow else BLACK)
+    c.rect(6, 12, 19, 13, s.line(GREY[1]))
     for y, x1 in ((17, 22), (20, 20), (23, 22)):
         c.line(6, y, x1, y, TEXT)
     c.line(6, 27, 15, 27, BLUE[1])
@@ -306,19 +306,18 @@ def m_tiles(s, c):
 MOTIFS = {'drawer': m_drawer, 'readme': m_page, 'license': lambda s, c: m_page(s, c, True),
           'demo': m_demo, 'install': m_install, 'tiles': m_tiles}
 
-W, H = 42, 38          # motif size; NewIcons need a width that is a multiple of 14
+W, H = 42, 38          # motif size of the GlowIcons
 GLOW_MARGIN = 3
 
 
-def draw(role, glow, selected):
-    s = Style(glow)
+def draw(role, selected):
+    """ the GlowIcons picture of a role """
+    s = Style()
     c = RGB(W, H)
     if role == 'drawer':
         m_drawer(s, c, opened=selected)
     else:
         MOTIFS[role](s, c)
-    if not glow:
-        return c
     g = RGB(W + 2 * GLOW_MARGIN, H + 2 * GLOW_MARGIN)
     for y in range(H):
         for x in range(W):
@@ -340,6 +339,233 @@ def add_glow(c):
                          if abs(x - a) <= 3 and abs(y - b) <= 3), default=9)
                 if d <= 3.2:
                     c.p[y][x] = GLOW[0 if d <= 1.5 else 1 if d <= 2.3 else 2]
+
+
+# ------------------------------------------------- NewIcons pictures ---
+# The palette of the NewIcons package. Objects are seen from above at the
+# left, edges rise 1 row per 2 columns; every slanted edge is a staircase
+# of 2 pixel pairs, outlines black. Top faces white, the left side dark,
+# the right side light; mixed tones are checkered. Tools and drawers stand
+# on a platform, file formats get a straight label (like "IFF").
+
+N_GREEN, N_YELLOW, N_RED = (51, 136, 51), (221, 187, 68), (221, 51, 51)
+N_G136, N_G102, N_G204 = (136, 136, 136), (102, 102, 102), (204, 204, 204)
+N_TAN, N_BLUE, N_G51 = (204, 153, 119), (0, 102, 153), (51, 51, 51)
+N_G170, N_LBLUE = (170, 170, 170), (102, 136, 187)
+
+NW, NH = 42, 42        # NewIcons size; the width is a multiple of 14 (see below)
+
+
+def checker(a, b):
+    return lambda x, y: a if (x + y) & 1 else b
+
+
+def tone(f, x, y):
+    return f(x, y) if callable(f) else f
+
+
+class Box:
+    """ isometric box, drawn column by column. (x0, y0) is the left corner
+        of the top face, a the rows of its upper left edge, b of its lower
+        left edge, h the height of the sides.                             """
+    def __init__(self, x0, y0, a, b, h):
+        self.x0, self.y0, self.a, self.b, self.h = x0, y0, a, b, h
+        self.w = 2 * (a + b) + 2
+
+    def ytop(self, u):
+        k = u // 2
+        return self.y0 - k if k <= self.a else self.y0 - self.a + (k - self.a)
+
+    def ymid(self, u):
+        """ lower edge of the top face in column u """
+        k = u // 2
+        return self.y0 + k if k <= self.b else self.y0 + self.b - (k - self.b)
+
+    def bottom(self, u):
+        return self.ymid(u) + self.h + 1
+
+    def right(self, u):
+        return u // 2 >= self.b
+
+    def draw(self, c, top, left, right, edge=None, outline=BLACK):
+        """ edge: the first row of the right side (below the top face) """
+        for u in range(self.w):
+            x, yt, ym = self.x0 + u, self.ytop(u), self.ymid(u)
+            side = u in (0, self.w - 1)
+            for y in range(yt, ym + self.h + 2):
+                if y == yt or y == ym + self.h + 1 or side:
+                    p = outline
+                elif y <= ym:
+                    p = tone(top, x, y)
+                elif self.right(u):
+                    p = tone(edge if edge and y == ym + 1 else right, x, y)
+                else:
+                    p = tone(left, x, y)
+                c.put(x, y, p)
+
+    def face_line(self, c, t, u0, u1, colour):
+        """ a line on the right side, t rows below its top, columns u0..u1 """
+        for u in range(u0, u1 + 1):
+            if self.right(u):
+                c.put(self.x0 + u, self.ymid(u) + t, colour)
+
+    def top_line(self, c, t, u0, u1, colour):
+        """ a line on the top face along its upper left edge, t rows below """
+        for u in range(u0, u1 + 1):
+            c.put(self.x0 + u, self.ytop(u) + t, colour)
+
+
+def platform(c, x0, y0, a, b, box, colour=N_GREEN, shadow=2):
+    """ the flat base under a box, with the box's shadow along its bottom """
+    p = Box(x0, y0, a, b, 0)
+    p.draw(c, colour, colour, colour)
+    for u in range(box.w):
+        x = box.x0 + u
+        pu = x - p.x0
+        if 0 < pu < p.w - 1:
+            for y in range(box.bottom(u) + 1, box.bottom(u) + 1 + shadow):
+                if p.ytop(pu) < y <= p.ymid(pu):
+                    c.put(x, y, N_G51)
+
+
+def n_drawer(c, sel):
+    """ a filing cabinet with two drawers; selected: the upper one is
+        pulled out, papers in it                                          """
+    box = Box(9, 10, 8, 5, 17)
+    platform(c, 7, 32, 12, 5, box)
+    box.draw(c, WHITE, N_G102, N_G204, edge=N_G102)
+    box.face_line(c, 9, 11, box.w - 2, N_G102)            # groove
+    box.face_line(c, 10, 11, box.w - 2, WHITE)
+    for t in ((13,) if sel else (4, 13)):                 # handles
+        box.face_line(c, t, 15, 20, N_G102)
+        box.face_line(c, t + 1, 15, 20, WHITE)
+    if sel:
+        # the drawer: 3 steps out of the front, over the upper half
+        bx, by = box.x0 + 2 * box.b + 2, box.ymid(2 * box.b + 2) + 1
+        d = Box(bx, by, box.a - 2, 3, 6)
+        d.draw(c, N_G51, N_G102, N_G204, edge=N_G102)
+        d.top_line(c, 2, 4, d.w - 6, WHITE)               # papers inside
+        d.top_line(c, 3, 3, d.w - 7, WHITE)
+        d.face_line(c, 3, 10, 15, N_G102)                 # its handle
+        d.face_line(c, 4, 10, 15, WHITE)
+
+
+def n_monitor(c, screen, sel):
+    """ a monitor: thin housing, bezel; screen(c, box, u0, u1, t0, t1, sel)
+        draws on the glass                                                """
+    box = Box(6, 11, 10, 3, 21)
+    platform(c, 3, 35, 13, 5, box)
+    box.draw(c, WHITE, N_G102, N_G204, edge=WHITE)
+    u0, u1, t0, t1 = 9, box.w - 4, 3, 16
+    for u in range(u0, u1 + 1):
+        x, y0 = box.x0 + u, box.ymid(u)
+        for t in range(t0, t1 + 1):
+            if u in (u0, u0 + 1) or t == t0:
+                p = N_G51
+            elif u in (u1 - 1, u1) or t == t1:
+                p = WHITE
+            else:
+                p = N_BLUE
+            c.put(x, y0 + t, p)
+    box.face_line(c, t0 + 2, u0 + 2, u0 + 3, N_LBLUE)    # glint
+    screen(c, box, u0 + 2, u1 - 2, t0 + 1, t1 - 1, sel)
+
+
+def n_demo(c, sel):
+    """ selected: the ball has bounced on """
+    def boing(c, box, u0, u1, t0, t1, sel):
+        u = (u0 + u1) // 2 + (2 if sel else -2)          # radius 3: stays on the glass
+        cx, cy = box.x0 + u, box.ymid(u) + (t0 + t1) // 2 + (2 if sel else 0)
+        c.disc(cx, cy, 3, lambda x, y: N_RED if ((x - cx + 9) // 2 + (y - cy + 9) // 2) % 2 else WHITE)
+    n_monitor(c, boing, sel)
+
+
+def n_sheet(c, sel):
+    """ an upright sheet of paper with lines of text on its face;
+        selected: a dog ear at its upper right corner                     """
+    s = Box(8, 10, 9, 1, 25)
+    s.draw(c, WHITE, N_G170, WHITE)
+    s.face_line(c, 3, 4, 11, N_BLUE)                      # heading
+    for i, t in enumerate(range(6, s.h - 1, 3)):
+        s.face_line(c, t, 4, (17, 15, 18, 12, 16, 18, 10)[i % 7], N_G136)
+    if sel:
+        # dog ear: the corner cut along a fold that starts on the top edge;
+        # below the fold the folded part, grey, widest at its left
+        f = 5
+        for d in range(2 * f):                            # d: columns from the right
+            u = s.w - 1 - d
+            x, top = s.x0 + u, s.ytop(u)                  # top: the outline row
+            fold = top + 2 * f - 1 - d
+            for y in range(top, fold):
+                c.put(x, y, None)                         # cut off
+            c.put(x, fold, BLACK)
+            depth = d                                     # the bottom parallel to the top edge
+            for y in range(fold + 1, fold + 1 + depth):
+                c.put(x, y, N_G136 if y == fold + depth or d == 2 * f - 1 else N_G204)
+    return s
+
+
+def n_readme(c, sel):
+    """ an upright book: red cover with a title, the spine on the left,
+        the pages at the top; selected: a bookmark over the spine         """
+    book = Box(9, 9, 8, 3, 24)
+    book.draw(c, WHITE, N_G51, N_RED, edge=N_RED)
+    book.top_line(c, 2, 3, 2 * (book.a + book.b) - 2, N_G170)      # pages
+    book.face_line(c, 5, 10, 18, N_YELLOW)                          # title
+    book.face_line(c, 7, 12, 16, N_YELLOW)
+    for t in (3, book.h - 2):                                       # bands on the spine
+        for u in range(1, 2 * book.b):
+            c.put(book.x0 + u, book.ymid(u) + t, N_YELLOW)
+    if sel:
+        # from the spine's top edge (below ymid), flat down the spine
+        for u in range(2, 5):
+            x, y0, y1 = book.x0 + u, book.ymid(u) + (0 if u == 4 else 1), book.ymid(u) + 12
+            for y in range(y0, y1 + 1):
+                c.put(x, y, BLACK if u == 4 else N_YELLOW)
+            c.put(x, y1 + 1, BLACK if u == 2 else N_G51)
+        c.put(book.x0 + 3, book.ymid(3) + 12, BLACK)      # notched end
+        c.put(book.x0 + 4, book.ymid(4) + 12, BLACK)
+
+
+def n_seal(c, x, y):
+    """ the red seal with its two ribbons, centre (x, y) """
+    c.poly([(x - 3, y + 2), (x, y + 2), (x - 1, y + 9), (x - 3, y + 7)], N_RED, BLACK)
+    c.poly([(x + 1, y + 2), (x + 4, y + 2), (x + 4, y + 7), (x + 2, y + 9)], N_RED, BLACK)
+    c.disc(x, y, 4, N_RED, BLACK)
+    c.put(x - 1, y - 1, WHITE)
+    c.put(x, y - 2, WHITE)
+
+
+def n_license(c, sel):
+    n_sheet(c, sel)
+    n_seal(c, 27, 30)
+
+
+def n_install(c, sel):
+    """ selected: the arrow is on its way into the box """
+    box = Box(5, 21, 9, 6, 10)
+    box.draw(c, checker(N_TAN, WHITE), checker(N_TAN, N_G102), N_TAN, edge=checker(N_TAN, N_G102))
+    d = 5 if sel else 0
+    c.poly([(17, 1 + d), (24, 1 + d), (24, 9 + d), (29, 9 + d), (20, 18 + d), (12, 9 + d), (17, 9 + d)],
+           N_GREEN, BLACK)
+
+
+def n_tiles(c, sel):
+    """ selected: the yellow cube hops up """
+    for x, y, col in ((3, 15, N_RED), (21, 13, N_LBLUE), (12, 24 - (4 if sel else 0), N_YELLOW)):
+        Box(x, y, 4, 4, 7).draw(c, checker(col, WHITE), checker(col, N_G51), col)
+
+
+NI_MOTIFS = {'drawer': n_drawer, 'readme': n_readme, 'license': n_license,
+             'demo': n_demo, 'install': n_install, 'tiles': n_tiles}
+
+
+def ni_draw(role, selected):
+    """ the NewIcons picture of a role; selected: the slightly changed one
+        NewIcons show instead of a darker picture                          """
+    c = RGB(NW, NH)
+    NI_MOTIFS[role](c, selected)
+    return c
 
 
 # ------------------------------------------------------ GlowIcons (IFF) ---
@@ -437,12 +663,6 @@ def ni_tooltypes(normal, selected):
         tuple(ni_image('IM1=', normal) + ni_image('IM2=', selected))
 
 
-def ni_pressed(img):
-    c = img.copy()
-    c.p = [[None if v is None else dim(v, 0.7) for v in row] for row in c.p]
-    return c
-
-
 # --------------------------------------------------------- DiskObject ---
 
 def diskobject(kind, pic, default_tool=None, tooltypes=(), stack=0, extra=b''):
@@ -486,12 +706,11 @@ def diskobject(kind, pic, default_tool=None, tooltypes=(), stack=0, extra=b''):
 def make_icon(style, role, kind, default_tool=None, tooltypes=(), stack=0):
     pic = CLASSIC[role]()
     if style == 'GlowIcons':
-        extra = glow_form(draw(role, True, False), draw(role, True, True))
+        extra = glow_form(draw(role, False), draw(role, True))
         return diskobject(kind, pic, default_tool, tooltypes, stack, extra)
     if style == 'NewIcons':
-        n = draw(role, False, False)
-        sel = draw(role, False, True) if role == 'drawer' else ni_pressed(n)
-        return diskobject(kind, pic, default_tool, tuple(tooltypes) + ni_tooltypes(n, sel), stack)
+        tt = ni_tooltypes(ni_draw(role, False), ni_draw(role, True))
+        return diskobject(kind, pic, default_tool, tuple(tooltypes) + tt, stack)
     return diskobject(kind, pic, default_tool, tooltypes, stack)
 
 
@@ -518,7 +737,7 @@ def classic_rgb(pic, selected):
 
 def preview(path, scale=3):
     roles = list(MOTIFS)
-    cell_w, cell_h, gap = 2 * (W + 2 * GLOW_MARGIN) + 8, H + 2 * GLOW_MARGIN, 10
+    cell_w, cell_h, gap = 2 * (W + 2 * GLOW_MARGIN) + 8, max(H + 2 * GLOW_MARGIN, NH), 10
     pw = (cell_w + gap) * len(roles) + gap
     ph = (cell_h + gap) * len(STYLES) + gap
     bg = WB_PEN[0]
@@ -529,10 +748,9 @@ def preview(path, scale=3):
                 if style == 'Classic':
                     img = classic_rgb(CLASSIC[role](), sel)
                 elif style == 'GlowIcons':
-                    img = draw(role, True, sel)
+                    img = draw(role, sel)
                 else:
-                    img = draw(role, False, False)
-                    img = (draw(role, False, True) if role == 'drawer' else ni_pressed(img)) if sel else img
+                    img = ni_draw(role, sel)
                 ox = gap + k * (cell_w + gap) + sel * (cell_w // 2)
                 oy = gap + r * (cell_h + gap)
                 for y in range(img.h):

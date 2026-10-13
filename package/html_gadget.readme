@@ -106,6 +106,9 @@ History
    and tables get pens of their own first, in both gadgets (white and the
    code background could end up with the same pen), and only pens the
    screen can show
+ - NewIcons drawn in the style of the NewIcons package (isometric, its
+   palette, objects on a platform); selected they show a changed picture
+   (open drawer, dog ear, ...) instead of a darker one
  - more characters outside Latin-1 get a replacement instead of "?":
    arrows (also the footnote back link of md4c, shown as ^), <=, >=, !=,
    ~ and primes
@@ -188,6 +191,9 @@ Versionsgeschichte
    Tabellen erhalten in beiden Gadgets zuerst eigene Stifte (Weiß und der
    Code-Hintergrund konnten denselben Stift bekommen), und nur Stifte, die
    der Screen zeigen kann
+ - NewIcons im Stil des NewIcons-Pakets gezeichnet (isometrisch, seine
+   Palette, Objekte auf einem Sockel); ausgewählt zeigen sie ein geändertes
+   Bild (offene Schublade, Eselsohr ...) statt eines dunkleren
  - mehr Zeichen außerhalb von Latin-1 erhalten einen Ersatz statt "?":
    Pfeile (auch der Rücksprung aus Fußnoten von md4c, als ^), <=, >=,
    !=, ~ und Striche für Minuten/Sekunden

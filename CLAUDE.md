@@ -86,4 +86,8 @@ Aufbau, Features und Build sind in `README.de.md` beschrieben.
   `Icons/<Stil>/`). Die Dateien in `icons/` sind Beispiele zum Ansehen auf dem Amiga und
   werden mit `make icons` neu erzeugt, nie von Hand bearbeitet.
 - NewIcons: Bildbreite 42 und 14 Farben sind Absicht (Paletten- und Zeilenenden fallen
-  auf 7-Bit-Grenzen), siehe Kommentare in `mkicons.py`.
+  auf 7-Bit-Grenzen), siehe Kommentare in `mkicons.py`. Gezeichnet im Stil des
+  NewIcons-Pakets (`Box`: isometrisch, Treppenkanten aus Pixelpaaren, Palette des Pakets,
+  Werkzeuge und Schubladen auf einem Sockel), eigene Motive, keine Pixel aus dem Paket.
+  Ausgewählt zeigen NewIcons ein leicht geändertes Bild, kein abgedunkeltes: jedes Motiv
+  in `NI_MOTIFS` zeichnet beide Zustände (`sel`).
