@@ -18,7 +18,7 @@
 #endif
 #define LIBVERSION  1
 #define LIBREVISION 2
-#define LIBDATE     "04.10.2026"
+#define LIBDATE     "17.10.2026"
 
 extern struct ExecBase      *SysBase;
 extern struct DosLibrary    *DOSBase;

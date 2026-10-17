@@ -48,7 +48,7 @@
 
 #include <string.h>
 
-static const char version[] = "$VER: HTMLDemo 1.2 (04.10.2026)";
+static const char version[] = "$VER: HTMLDemo 1.2 (17.10.2026)";
 
 /* libnix swaps to a stack of this size at the start (linked with
  * -Wl,-u,___stkinit): started from the Workbench without its own icon,
