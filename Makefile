@@ -21,6 +21,12 @@ LIBOBJ  := $(LIBSRC:src/%.c=$(B)/%.o)
 DEMOFILES := $(addprefix bin/,example.html zweite.html hintergrund.html tabellen.html umfluss.html boing.gif farben.iff papier.gif kachel.gif streifen.gif)
 FONTFILES := $(patsubst demo/fonts/%,bin/fonts/%,$(wildcard demo/fonts/*))
 
+# shared tools (git submodule): icons, Aminet archive, charcheck
+DEVKIT  := amiga-devkit
+ifeq ($(wildcard $(DEVKIT)/make/charcheck.mk),)
+$(error $(DEVKIT) is missing: git submodule update --init)
+endif
+
 # --- htmlttf.gadget: same core, FreeType renderer ---------------------------
 # FreeType 2.3.8 sources (Aminet: dev/lib/freetype-2.3.8), only the modules
 # needed for TrueType are compiled, with our own config and libc shim (ttf/).
@@ -85,14 +91,13 @@ bin/%: demo/%
 	@mkdir -p bin
 	cp $< $@
 
-# Amiga sources and texts must be ISO-8859-1: refuse UTF-8 sequences.
+# Amiga sources and texts must be ISO-8859-1: "make charcheck" refuses UTF-8
+# sequences (amiga-devkit/make/charcheck.mk).
 # Not checked: README*.md (GitHub) and tools/*.py (host only), both UTF-8.
 LATIN1  := $(wildcard src/*.c src/*.h include/*/*.h include/fd/*.fd sfd/*.sfd \
            demo/*.c demo/*.html test/*.c test/*.html test/*.expected \
            ttf/*.c ttf/include/*.h doc/*.doc package/* LICENSE Makefile)
-charcheck:
-	@if LC_ALL=C grep -lP '[\xC2-\xF4][\x80-\xBF]' $(LATIN1); then \
-		echo "*** Die Dateien oben enthalten UTF-8, bitte nach ISO-8859-1 wandeln"; exit 1; fi
+include $(DEVKIT)/make/charcheck.mk
 
 $(B)/%.o: src/%.c src/html_core.h src/html_print.h src/html_export.h src/html_private.h include/gadgets/html.h
 	@mkdir -p $(B)
@@ -189,4 +194,4 @@ dist: all
 clean:
 	rm -rf build bin dist test/hosttest test/hostprint test/ttfpreview test/ttfprint preview.ppm
 
-.PHONY: all clean check check-update charcheck preview print-preview print-ttf afm dist icons ttf020
+.PHONY: all clean check check-update preview print-preview print-ttf afm dist icons ttf020

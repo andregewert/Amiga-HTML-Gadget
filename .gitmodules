@@ -1,0 +1,3 @@
+[submodule "amiga-devkit"]
+	path = amiga-devkit
+	url = https://github.com/andregewert/Amiga-Devkit.git

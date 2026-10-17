@@ -163,9 +163,11 @@ The full reference is in the Autodocs: [`doc/html_gadget.doc`](doc/html_gadget.d
 Cross compiled on Linux with [bebbo's amiga-gcc](https://codeberg.org/bebbo/amiga-gcc) in
 `/opt/amiga` (with NDK 3.2). htmlttf.gadget additionally needs the FreeType 2.3.8 sources
 (Aminet `dev/lib/freetype-2.3.8`, default path `~/AmiLib/freetype-2.3.8`, set with
-`make FT=...`).
+`make FT=...`). Icons, Aminet archive and the charset check use the shared tools in the git
+submodule `amiga-devkit/`:
 
 ```
+git submodule update --init   # once after cloning (or: git clone --recursive)
 make            # bin/html.gadget, bin/htmlttf.gadget, bin/HTMLDemo, demo pages
 make check      # parser + layout tests on the host (AddressSanitizer), compared to test/*.expected
 make check-update  # accept an intended layout change as new reference

@@ -31,7 +31,7 @@ die Klasse auch im Programmverzeichnis).
 Das Archiv hat klassische Icons mit 4 Farben. In `Icons/` liegen vollständige Sätze im
 **GlowIcons**- und **NewIcons**-Stil (beide zeigt die icon.library von OS 3.2 direkt an):
 Doppelklick auf `UseGlowIcons`, `UseNewIcons` oder `UseClassic`.
-Die Icons erzeugt `tools/mkicons.py`; `make icons` schreibt Beispiele aller Stile nach
+Die Icons erzeugt `tools/mkicons.py` mit dem Icon-Werkzeug aus `amiga-devkit/`; `make icons` schreibt Beispiele aller Stile nach
 `icons/` und eine Vorschau nach `icons/preview.png`.
 
 ![Icon-Stile: klassisch, GlowIcons, NewIcons (normal und ausgewählt)](icons/preview.png)
@@ -200,9 +200,11 @@ Demo-Seite dazu: `hintergrund.html`.
 
 Benötigt [bebbos amiga-gcc](https://codeberg.org/bebbo/amiga-gcc) unter `/opt/amiga` (mit NDK 3.2), für `htmlttf.gadget` zusätzlich
 die FreeType-2.3.8-Quellen (Aminet `freetype-2.3.8`, Standardpfad `~/AmiLib/freetype-2.3.8`,
-änderbar mit `make FT=...`):
+änderbar mit `make FT=...`). Icons, Aminet-Paket und Zeichensatzprüfung kommen aus dem
+Git-Submodule `amiga-devkit/`:
 
 ```
+git submodule update --init   # einmal nach dem Klonen (oder: git clone --recursive)
 make            # bin/html.gadget, bin/HTMLDemo, Beispielseiten und -bilder
 make check      # Parser + Layout auf dem Host (mit AddressSanitizer), Vergleich mit test/*.expected
 make check-update  # gewollte Layoutänderung als neue Referenz übernehmen
